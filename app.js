@@ -1,6 +1,6 @@
 // Followbulk browser configuration. The publishable/anon key is designed for browser use.
 // Never put a Supabase secret/service_role key in this file.
-const SUPABASE_URL = "https://genlycxbfrjkwfaepmjc.supabase.co";
+const SUPABASE_URL = "https://genylcxbfrjkwfaepmjc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_sT79tQnCQVGHXMn7sDXBew_pmih3eJ6";
 
 const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
