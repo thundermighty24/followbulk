@@ -3,37 +3,224 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Followbulk — Social Growth Services</title>
-  <meta name="description" content="Followbulk social media marketing services dashboard.">
+  <meta name="theme-color" content="#17152f">
+  <title>Followbulk — Social Growth Dashboard</title>
+  <meta name="description" content="Manage your social media services with Followbulk.">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="#"><span class="brand-mark">F</span> Follow<span>bulk</span></a>
-    <nav><a href="#services">Services</a><a href="#how">How it works</a></nav>
-    <div class="nav-actions"><span id="user-label"></span><button class="btn btn-ghost" id="login-open">Login</button><button class="btn" id="signup-open">Create account</button><button class="btn btn-ghost hidden" id="logout">Log out</button></div>
+    <a class="brand" href="#">
+      <span class="brand-mark">F</span>
+      Follow<span>bulk</span>
+    </a>
+    <nav>
+      <a href="#services">Services</a>
+      <a href="#dashboard">Dashboard</a>
+      <a href="#how">How it works</a>
+    </nav>
+    <div class="nav-actions">
+      <span id="user-label"></span>
+      <button class="btn btn-ghost" id="login-open">Login</button>
+      <button class="btn" id="signup-open">Create account</button>
+      <button class="btn btn-ghost hidden" id="logout">Log out</button>
+    </div>
   </header>
+
   <main>
     <section class="hero">
       <div class="hero-copy">
-        <div class="eyebrow">SOCIAL MEDIA SERVICES, SIMPLIFIED</div>
-        <h1>Grow your socials.<br><span>Keep it simple.</span></h1>
-        <p>Explore social media marketing services, track your requests and manage your account in one place.</p>
-        <div class="hero-actions"><a class="btn" href="#services">Explore services</a><button class="btn btn-light" id="hero-signup">Get started</button></div>
-        <div class="trust"><span>✓ Clear service details</span><span>✓ Account dashboard</span><span>✓ Manual UPI top-ups</span></div>
+        <div class="eyebrow">WELCOME TO FOLLOWBULK</div>
+        <h1>Your social growth.<br><span>One simple place.</span></h1>
+        <p>
+          Explore social media services, manage your account
+          and keep track of your requests with Followbulk.
+        </p>
+        <div class="hero-actions">
+          <a class="btn" href="#services">Explore services</a>
+          <button class="btn btn-light" id="hero-signup">Get started</button>
+        </div>
+        <div class="trust">
+          <span>✓ Simple dashboard</span>
+          <span>✓ Clear pricing</span>
+          <span>✓ UPI top-up requests</span>
+        </div>
       </div>
-      <div class="hero-panel"><div class="panel-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><small>FOLLOWBULK DASHBOARD</small></div><div class="growth-card"><small>YOUR SOCIAL WORKSPACE</small><h2>One simple panel.</h2><p>Browse · Request · Track</p><div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="panel-foot"><span>Services</span><b>Ready to explore</b></div></div></div>
+      <div class="hero-panel">
+        <div class="panel-top">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <small>FOLLOWBULK WORKSPACE</small>
+        </div>
+        <div class="growth-card">
+          <small>YOUR SOCIAL WORKSPACE</small>
+          <h2>Everything in one place.</h2>
+          <p>Explore · Manage · Track</p>
+          <div class="bars">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <div class="panel-foot">
+            <span>Your account</span>
+            <b>Ready to explore</b>
+          </div>
+        </div>
+      </div>
     </section>
+
     <section class="section" id="services">
-      <div class="section-heading"><div><div class="eyebrow">CATALOGUE</div><h2>Popular services</h2><p>Services appear here after the admin syncs the provider catalogue.</p></div><button class="btn btn-light" id="refresh-services">Refresh catalogue</button></div>
-      <div id="services-list" class="service-grid"><div class="empty">Connect your account and refresh to load available services.</div></div>
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">SERVICE CATALOGUE</div>
+          <h2>Explore services</h2>
+          <p>Browse the services available on Followbulk.</p>
+        </div>
+        <button class="btn btn-light" id="refresh-services">
+          Refresh catalogue
+        </button>
+      </div>
+      <div id="services-list" class="service-grid">
+        <div class="empty">Loading services...</div>
+      </div>
     </section>
-    <section class="section how" id="how"><div class="eyebrow">HOW IT WORKS</div><h2>Simple steps. Clear updates.</h2><div class="steps"><article><b>01</b><h3>Create an account</h3><p>Sign up to access your Followbulk dashboard.</p></article><article><b>02</b><h3>Choose a service</h3><p>Review service details and pricing before ordering.</p></article><article><b>03</b><h3>Track your requests</h3><p>See your account activity and request status.</p></article></div></section>
-    <section class="section dashboard" id="dashboard"><div class="section-heading"><div><div class="eyebrow">YOUR ACCOUNT</div><h2>Customer dashboard</h2></div><span id="auth-status" class="status">Sign in to view your account</span></div><div class="dash-grid"><article class="dash-card"><h3>Wallet top-up</h3><p>Submit a UPI payment reference for manual review. Funds are not added automatically.</p><form id="topup-form"><label>Amount (₹)<input type="number" min="1" step="1" id="topup-amount" required placeholder="e.g. 200"></label><label>UPI UTR / reference<input id="topup-utr" required maxlength="100" placeholder="Enter payment reference"></label><button class="btn" type="submit">Submit top-up request</button></form><p id="topup-message" class="message"></p></article><article class="dash-card"><h3>Recent top-up requests</h3><div id="wallet-requests" class="empty">Sign in to view requests.</div></article></div></section>
+
+    <section class="section dashboard" id="dashboard">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">CUSTOMER AREA</div>
+          <h2>Your dashboard</h2>
+          <p>Manage your Followbulk account in one place.</p>
+        </div>
+        <span id="auth-status" class="status">
+          Sign in to view your account
+        </span>
+      </div>
+
+      <div class="dash-grid">
+        <article class="dash-card">
+          <div class="eyebrow">ACCOUNT</div>
+          <h3>Welcome to Followbulk</h3>
+          <p>
+            Sign in to manage your account and view your
+            recent payment requests.
+          </p>
+          <div class="account-note">
+            Your account activity will appear here after login.
+          </div>
+        </article>
+
+        <article class="dash-card">
+          <div class="eyebrow">WALLET</div>
+          <h3>UPI wallet top-up</h3>
+          <p>
+            Submit your payment reference for manual verification.
+            Funds are not added automatically.
+          </p>
+          <form id="topup-form">
+            <label>
+              Amount (₹)
+              <input type="number" min="1" step="1"
+                id="topup-amount" required placeholder="Enter amount">
+            </label>
+            <label>
+              UPI UTR / Reference
+              <input id="topup-utr" required maxlength="100"
+                placeholder="Enter payment reference">
+            </label>
+            <button class="btn" type="submit">
+              Submit top-up request
+            </button>
+          </form>
+          <p id="topup-message" class="message"></p>
+        </article>
+
+        <article class="dash-card">
+          <div class="eyebrow">ACTIVITY</div>
+          <h3>Recent top-up requests</h3>
+          <div id="wallet-requests" class="empty">
+            Sign in to view requests.
+          </div>
+        </article>
+
+        <article class="dash-card">
+          <div class="eyebrow">COMING NEXT</div>
+          <h3>Order management</h3>
+          <p>
+            Order placement, order history, wallet balance
+            and tracking will be added after secure backend setup.
+          </p>
+          <div class="account-note">
+            Your existing account and payment request data will be preserved.
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section how" id="how">
+      <div class="eyebrow">HOW IT WORKS</div>
+      <h2>Simple steps. Clear updates.</h2>
+      <div class="steps">
+        <article>
+          <b>01</b>
+          <h3>Create an account</h3>
+          <p>Register to access your Followbulk dashboard.</p>
+        </article>
+        <article>
+          <b>02</b>
+          <h3>Explore services</h3>
+          <p>Review available services and their pricing.</p>
+        </article>
+        <article>
+          <b>03</b>
+          <h3>Track requests</h3>
+          <p>Check your account activity and request updates.</p>
+        </article>
+      </div>
+    </section>
   </main>
-  <footer><a class="brand" href="#"><span class="brand-mark">F</span> Follow<span>bulk</span></a><small>© 2026 Followbulk. Use services responsibly and follow each platform's terms.</small></footer>
-  <dialog id="auth-dialog"><form method="dialog" class="dialog-close"><button aria-label="Close">×</button></form><div class="eyebrow">WELCOME TO FOLLOWBULK</div><h2 id="auth-title">Login</h2><form id="auth-form"><label id="name-wrap" class="hidden">Full name<input id="full-name" autocomplete="name"></label><label>Email<input id="email" type="email" autocomplete="email" required></label><label>Password<input id="password" type="password" minlength="6" autocomplete="current-password" required></label><button class="btn full" id="auth-submit" type="submit">Login</button><p id="auth-message" class="message"></p></form><button class="text-button" id="auth-switch">New here? Create an account</button></dialog>
+
+  <footer>
+    <a class="brand" href="#">
+      <span class="brand-mark">F</span>
+      Follow<span>bulk</span>
+    </a>
+    <small>
+      © 2026 Followbulk. Use services responsibly and follow
+      each platform's terms.
+    </small>
+  </footer>
+
+  <dialog id="auth-dialog">
+    <form method="dialog" class="dialog-close">
+      <button aria-label="Close">×</button>
+    </form>
+    <div class="eyebrow">WELCOME TO FOLLOWBULK</div>
+    <h2 id="auth-title">Login</h2>
+    <form id="auth-form">
+      <label id="name-wrap" class="hidden">
+        Full name
+        <input id="full-name" autocomplete="name">
+      </label>
+      <label>
+        Email
+        <input id="email" type="email" autocomplete="email" required>
+      </label>
+      <label>
+        Password
+        <input id="password" type="password" minlength="6"
+          autocomplete="current-password" required>
+      </label>
+      <button class="btn full" id="auth-submit" type="submit">
+        Login
+      </button>
+      <p id="auth-message" class="message"></p>
+    </form>
+    <button class="text-button" id="auth-switch">
+      New here? Create an account
+    </button>
+  </dialog>
+
   <div id="toast" role="status" class="toast"></div>
   <script src="app.js"></script>
 </body>
