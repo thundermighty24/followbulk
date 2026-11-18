@@ -1,12 +1,13 @@
 
 const SUPABASE_URL = "https://genylcxbfrjkwfaepmjc.supabase.co";
-const SUPABASE_KEY = "sb_publishable_sT79tQnCQVGHXMn7sDXBew_pmih3eJ6";
+const SUPABASE_KEY = "sb_publishable_sT79tQnCQVGHXMn7sDXBew_pm3hJ6";
 
 const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = (id) => document.getElementById(id);
 
 let currentUser = null;
+let currentRole = "customer";
 let services = [];
 let selectedService = null;
 let authMode = "login";
@@ -23,25 +24,25 @@ function escapeHTML(value) {
 
 function formatRupees(value) {
   const amount = Number(value);
-  return Number.isFinite(amount)
-    ? "₹" + amount.toFixed(2)
-    : "—";
+  return Number.isFinite(amount) ? "₹" + amount.toFixed(2) : "—";
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("en-IN");
 }
 
 function detectPlatform(service) {
   const text = `${service.name || ""} ${service.category || ""}`.toLowerCase();
-
   if (/instagram|\binsta\b/.test(text)) return "instagram";
-  if (/youtube|\byoutube\b|\byt\b/.test(text)) return "youtube";
+  if (/youtube|\byt\b/.test(text)) return "youtube";
   if (/facebook|\bfb\b/.test(text)) return "facebook";
   if (/telegram|\btg\b/.test(text)) return "telegram";
-
   return "other";
 }
 
 function detectCategory(service) {
   const text = `${service.name || ""} ${service.category || ""} ${service.description || ""}`.toLowerCase();
-
   if (/follower|subscriber|member/.test(text)) return "Followers & Subscribers";
   if (/like|reaction/.test(text)) return "Likes & Reactions";
   if (/view|impression|watch/.test(text)) return "Views & Watch";
@@ -50,26 +51,20 @@ function detectCategory(service) {
   if (/save|bookmark/.test(text)) return "Saves";
   if (/story/.test(text)) return "Stories";
   if (/live|stream/.test(text)) return "Live & Streaming";
-
   return service.category || "Other Services";
 }
 
 function showToast(message) {
   const toast = $("toast");
   if (!toast) return;
-
   toast.textContent = message;
   toast.classList.add("show");
-
-  setTimeout(() => {
-    toast.classList.remove("show");
-  }, 3000);
+  setTimeout(() => toast.classList.remove("show"), 3000);
 }
 
 function setMessage(id, message, type = "") {
   const element = $(id);
   if (!element) return;
-
   element.textContent = message;
   element.className = "message" + (type ? " " + type : "");
 }
@@ -82,7 +77,6 @@ function openAuth(mode) {
   $("auth-switch").textContent = mode === "signup"
     ? "Already registered? Login"
     : "New here? Create an account";
-
   $("auth-message").textContent = "";
   $("auth-dialog").showModal();
 }
@@ -113,9 +107,7 @@ async function handleAuth(event) {
         email,
         password,
         options: {
-          data: {
-            full_name: fullName
-          }
+          data: { full_name: fullName }
         }
       });
 
@@ -152,20 +144,43 @@ async function handleAuth(event) {
   }
 }
 
+/* USER ROLE AND SESSION */
+
 async function refreshSession() {
   const { data } = await client.auth.getSession();
   currentUser = data.session?.user || null;
+  currentRole = "customer";
+
+  if (currentUser) {
+    const { data: profile, error } = await client
+      .from("profiles")
+      .select("role,full_name")
+      .eq("id", currentUser.id)
+      .single();
+
+    if (error) {
+      console.error("Profile loading error:", error);
+      showToast("Unable to verify your account role.");
+    } else {
+      currentRole = profile?.role || "customer";
+    }
+  }
+
+  const isAdmin = currentUser && currentRole === "admin";
 
   $("login-open").classList.toggle("hidden", !!currentUser);
   $("signup-open").classList.toggle("hidden", !!currentUser);
   $("logout").classList.toggle("hidden", !currentUser);
+
+  $("admin-nav").classList.toggle("hidden", !isAdmin);
+  $("admin-dashboard").classList.toggle("hidden", !isAdmin);
 
   $("user-label").textContent = currentUser
     ? (currentUser.user_metadata?.full_name || currentUser.email)
     : "";
 
   $("auth-status").textContent = currentUser
-    ? "Signed in as " + currentUser.email
+    ? (isAdmin ? "Signed in as administrator" : "Signed in as " + currentUser.email)
     : "Sign in to view your account";
 
   $("topup-amount").disabled = !currentUser;
@@ -174,10 +189,26 @@ async function refreshSession() {
 
   if (currentUser) {
     await loadWalletRequests();
+    if (isAdmin) {
+      await loadAdminDashboard();
+    }
   } else {
     $("wallet-requests").textContent = "Sign in to view requests.";
+    clearAdminDashboard();
   }
 }
+
+function clearAdminDashboard() {
+  $("admin-customer-count").textContent = "—";
+  $("admin-order-count").textContent = "—";
+  $("admin-pending-count").textContent = "—";
+  $("admin-service-count").textContent = "—";
+  $("admin-wallet-list").textContent = "Admin login required.";
+  $("admin-customer-list").textContent = "Admin login required.";
+  $("admin-order-list").textContent = "Admin login required.";
+}
+
+/* SERVICES */
 
 async function loadServices() {
   const list = $("services-list");
@@ -205,7 +236,6 @@ async function loadServices() {
 
 function updateCategoryOptions() {
   const platform = $("platform-filter").value;
-
   const categories = [...new Set(
     services
       .filter(service => platform === "all" || detectPlatform(service) === platform)
@@ -237,7 +267,6 @@ function renderServices() {
   const filtered = services.filter(service => {
     const servicePlatform = detectPlatform(service);
     const serviceCategory = detectCategory(service);
-
     const searchable = [
       service.name,
       service.category,
@@ -287,14 +316,12 @@ function renderServices() {
 
 function selectService(id) {
   selectedService = services.find(service => String(service.id) === String(id));
-
   if (!selectedService) return;
 
   $("selected-service-name").value = selectedService.name;
   $("selected-service-rate").textContent = formatRupees(selectedService.rate);
   $("selected-service-min").textContent = selectedService.min_quantity;
   $("selected-service-max").textContent = selectedService.max_quantity;
-
   $("order-message").textContent =
     "Service selected. Order placement is not active yet.";
 
@@ -303,6 +330,8 @@ function selectService(id) {
     block: "center"
   });
 }
+
+/* CUSTOMER WALLET REQUESTS */
 
 async function submitTopup(event) {
   event.preventDefault();
@@ -349,6 +378,10 @@ async function submitTopup(event) {
 
     $("topup-form").reset();
     await loadWalletRequests();
+
+    if (currentRole === "admin") {
+      await loadAdminDashboard();
+    }
   } catch (error) {
     setMessage("topup-message", error.message || "Unable to submit request.");
   } finally {
@@ -395,6 +428,228 @@ async function loadWalletRequests() {
   }
 }
 
+/* ADMIN DASHBOARD */
+
+async function loadAdminDashboard() {
+  if (!currentUser || currentRole !== "admin") return;
+
+  await Promise.all([
+    loadAdminStats(),
+    loadAdminWalletRequests(),
+    loadAdminCustomers(),
+    loadAdminOrders()
+  ]);
+}
+
+async function loadAdminStats() {
+  try {
+    const results = await Promise.all([
+      client.from("profiles").select("id", { count: "exact", head: true }),
+      client.from("orders").select("id", { count: "exact", head: true }),
+      client.from("wallet_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending"),
+      client.from("services").select("id", { count: "exact", head: true })
+    ]);
+
+    results.forEach(result => {
+      if (result.error) throw result.error;
+    });
+
+    $("admin-customer-count").textContent = results[0].count ?? "—";
+    $("admin-order-count").textContent = results[1].count ?? "—";
+    $("admin-pending-count").textContent = results[2].count ?? "—";
+    $("admin-service-count").textContent = results[3].count ?? "—";
+  } catch (error) {
+    console.error("Admin statistics error:", error);
+    showToast("Unable to load some dashboard statistics.");
+  }
+}
+
+async function loadAdminWalletRequests() {
+  const holder = $("admin-wallet-list");
+
+  if (currentRole !== "admin") return;
+
+  holder.textContent = "Loading wallet requests...";
+
+  try {
+    const { data, error } = await client
+      .from("wallet_requests")
+      .select("id,user_id,amount,utr_reference,status,admin_note,created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    if (!data || !data.length) {
+      holder.textContent = "No wallet requests found.";
+      return;
+    }
+
+    holder.innerHTML = data.map(request => `
+      <div class="admin-request-row">
+        <div class="admin-request-details">
+          <strong>${formatRupees(request.amount)}</strong>
+          <small>UTR: ${escapeHTML(request.utr_reference)}</small>
+          <small>User ID: ${escapeHTML(request.user_id)}</small>
+          <small>${formatDate(request.created_at)}</small>
+          <span class="request-status ${escapeHTML(request.status)}">
+            ${escapeHTML(request.status)}
+          </span>
+          ${request.admin_note ? `<small>Note: ${escapeHTML(request.admin_note)}</small>` : ""}
+        </div>
+        ${request.status === "pending" ? `
+          <div class="admin-actions">
+            <button class="btn btn-small approve-wallet" data-id="${escapeHTML(request.id)}">Approve</button>
+            <button class="btn btn-small btn-danger reject-wallet" data-id="${escapeHTML(request.id)}">Reject</button>
+          </div>
+        ` : ""}
+      </div>
+    `).join("");
+  } catch (error) {
+    holder.textContent = "Unable to load wallet requests.";
+    console.error("Admin wallet error:", error);
+  }
+}
+
+async function reviewWalletRequest(id, action) {
+  if (!currentUser || currentRole !== "admin") {
+    showToast("Administrator access required.");
+    return;
+  }
+
+  const note = action === "rejected"
+    ? (prompt("Enter a reason for rejecting this request:") || "").trim()
+    : (prompt("Optional admin note:") || "").trim();
+
+  if (action === "rejected" && !note) {
+    showToast("Please enter a rejection reason.");
+    return;
+  }
+
+  if (!confirm(`Are you sure you want to ${action} this wallet request?`)) {
+    return;
+  }
+
+  try {
+    let error;
+
+    if (action === "approved") {
+      const result = await client.rpc("approve_wallet_request", {
+        p_request_id: id,
+        p_admin_note: note || null
+      });
+      error = result.error;
+    } else {
+      const result = await client
+        .from("wallet_requests")
+        .update({
+          status: "rejected",
+          admin_note: note,
+          reviewed_by: currentUser.id,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq("id", id)
+        .eq("status", "pending");
+
+      error = result.error;
+    }
+
+    if (error) throw error;
+
+    showToast(`Wallet request ${action}.`);
+    await loadAdminDashboard();
+    await loadWalletRequests();
+  } catch (error) {
+    console.error("Wallet review error:", error);
+    showToast(error.message || "Unable to review this request.");
+  }
+}
+
+async function loadAdminCustomers() {
+  const holder = $("admin-customer-list");
+
+  if (currentRole !== "admin") return;
+
+  holder.textContent = "Loading customers...";
+
+  try {
+    const { data, error } = await client
+      .from("profiles")
+      .select("id,email,full_name,role,created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    if (!data || !data.length) {
+      holder.textContent = "No customer accounts found.";
+      return;
+    }
+
+    holder.innerHTML = data.map(customer => `
+      <div class="admin-list-row">
+        <div>
+          <strong>${escapeHTML(customer.full_name || "No name")}</strong>
+          <small>${escapeHTML(customer.email)}</small>
+          <small>${formatDate(customer.created_at)}</small>
+        </div>
+        <span class="request-status ${customer.role === "admin" ? "approved" : "pending"}">
+          ${escapeHTML(customer.role)}
+        </span>
+      </div>
+    `).join("");
+  } catch (error) {
+    holder.textContent = "Unable to load customers.";
+    console.error("Admin customers error:", error);
+  }
+}
+
+async function loadAdminOrders() {
+  const holder = $("admin-order-list");
+
+  if (currentRole !== "admin") return;
+
+  holder.textContent = "Loading orders...";
+
+  try {
+    const { data, error } = await client
+      .from("orders")
+      .select("id,user_id,service_name,target_url,quantity,charge,status,created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    if (!data || !data.length) {
+      holder.textContent = "No orders found.";
+      return;
+    }
+
+    holder.innerHTML = data.map(order => `
+      <div class="admin-list-row">
+        <div>
+          <strong>${escapeHTML(order.service_name || "Service")}</strong>
+          <small>Quantity: ${escapeHTML(order.quantity)}</small>
+          <small>Charge: ${formatRupees(order.charge)}</small>
+          <small>Customer ID: ${escapeHTML(order.user_id)}</small>
+          <small>Target: ${escapeHTML(order.target_url || "—")}</small>
+          <small>${formatDate(order.created_at)}</small>
+        </div>
+        <span class="request-status ${escapeHTML(order.status)}">
+          ${escapeHTML(order.status)}
+        </span>
+      </div>
+    `).join("");
+  } catch (error) {
+    holder.textContent = "Unable to load orders.";
+    console.error("Admin orders error:", error);
+  }
+}
+
+/* EVENTS */
+
 function setupEvents() {
   $("login-open").addEventListener("click", () => openAuth("login"));
   $("signup-open").addEventListener("click", () => openAuth("signup"));
@@ -422,29 +677,4 @@ function setupEvents() {
 
   $("platform-filter").addEventListener("change", () => {
     $("category-filter").value = "all";
-    updateCategoryOptions();
-    renderServices();
-  });
-
-  $("category-filter").addEventListener("change", renderServices);
-
-  $("services-list").addEventListener("click", event => {
-    const button = event.target.closest(".select-service");
-    if (button) selectService(button.dataset.id);
-  });
-
-  $("refresh-services").addEventListener("click", loadServices);
-  $("topup-form").addEventListener("submit", submitTopup);
-
-  client.auth.onAuthStateChange(() => {
-    setTimeout(() => refreshSession(), 0);
-  });
-}
-
-async function init() {
-  setupEvents();
-  await refreshSession();
-  await loadServices();
-}
-
-document.addEventListener("DOMContentLoaded", init);
+    upd
