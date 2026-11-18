@@ -16,6 +16,7 @@
     <nav>
       <a href="#services">Services</a>
       <a href="#dashboard">Dashboard</a>
+      <a href="#admin-dashboard" id="admin-nav" class="hidden">Admin</a>
       <a href="#how">How it works</a>
     </nav>
     <div class="nav-actions">
@@ -63,7 +64,6 @@
         </div>
         <button class="btn btn-light" id="refresh-services">Refresh catalogue</button>
       </div>
-
       <div class="catalogue-tools">
         <input id="service-search" type="search" placeholder="Search services..." aria-label="Search services">
         <select id="platform-filter" aria-label="Filter by platform">
@@ -151,6 +151,74 @@
       </div>
     </section>
 
+    <!-- ADMIN DASHBOARD -->
+    <section class="section hidden" id="admin-dashboard">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">FOLLOWBULK CONTROL CENTER</div>
+          <h2>Admin Dashboard</h2>
+          <p>Manage customers, wallet requests and orders.</p>
+        </div>
+        <span class="status">Administrator</span>
+      </div>
+
+      <div class="dash-grid admin-stats">
+        <article class="dash-card">
+          <div class="eyebrow">CUSTOMERS</div>
+          <h3 id="admin-customer-count">—</h3>
+          <p>Registered accounts</p>
+        </article>
+        <article class="dash-card">
+          <div class="eyebrow">TOTAL ORDERS</div>
+          <h3 id="admin-order-count">—</h3>
+          <p>Orders in the system</p>
+        </article>
+        <article class="dash-card">
+          <div class="eyebrow">PENDING TOP-UPS</div>
+          <h3 id="admin-pending-count">—</h3>
+          <p>Awaiting manual review</p>
+        </article>
+        <article class="dash-card">
+          <div class="eyebrow">SERVICES</div>
+          <h3 id="admin-service-count">—</h3>
+          <p>Available catalogue services</p>
+        </article>
+      </div>
+
+      <div class="dash-card admin-panel">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">PAYMENT MANAGEMENT</div>
+            <h3>Wallet top-up requests</h3>
+          </div>
+          <button class="btn btn-light btn-small" id="admin-refresh-wallet">Refresh</button>
+        </div>
+        <div id="admin-wallet-list" class="empty">Loading wallet requests...</div>
+      </div>
+
+      <div class="dash-card admin-panel">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">CUSTOMER MANAGEMENT</div>
+            <h3>Registered customers</h3>
+          </div>
+          <button class="btn btn-light btn-small" id="admin-refresh-customers">Refresh</button>
+        </div>
+        <div id="admin-customer-list" class="empty">Loading customers...</div>
+      </div>
+
+      <div class="dash-card admin-panel">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">ORDER MANAGEMENT</div>
+            <h3>Recent orders</h3>
+          </div>
+          <button class="btn btn-light btn-small" id="admin-refresh-orders">Refresh</button>
+        </div>
+        <div id="admin-order-list" class="empty">Loading orders...</div>
+      </div>
+    </section>
+
     <section class="section how" id="how">
       <div class="eyebrow">HOW IT WORKS</div>
       <h2>Simple steps. Clear updates.</h2>
@@ -180,6 +248,7 @@
     </form>
     <button class="text-button" id="auth-switch">New here? Create an account</button>
   </dialog>
+
   <div id="toast" role="status" class="toast"></div>
   <script src="app.js"></script>
 </body>
