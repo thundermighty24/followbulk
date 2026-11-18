@@ -1,13 +1,18 @@
 
+/* =========================================
+   FOLLOWBULK - CUSTOMER + ADMIN APPLICATION
+   ========================================= */
+
 const SUPABASE_URL = "https://genylcxbfrjkwfaepmjc.supabase.co";
-const SUPABASE_KEY = "sb_publishable_sT79tQnCQVGHXMn7sDXBew_pm3hJ6";
+const SUPABASE_KEY = "sb_publishable_sT79tQnCQVGHXMn7sDXBew_pmih3eJ6";
 
 const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = (id) => document.getElementById(id);
 
 let currentUser = null;
-let currentRole = "customer";
+let currentProfile = null;
+let isAdmin = false;
 let services = [];
 let selectedService = null;
 let authMode = "login";
@@ -24,12 +29,36 @@ function escapeHTML(value) {
 
 function formatRupees(value) {
   const amount = Number(value);
-  return Number.isFinite(amount) ? "₹" + amount.toFixed(2) : "—";
+  return Number.isFinite(amount) ? "₹" + amount.toFixed(2) : "₹0.00";
 }
 
 function formatDate(value) {
   if (!value) return "—";
-  return new Date(value).toLocaleString("en-IN");
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("en-IN");
+}
+
+function showToast(message) {
+  const toast = $("toast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 3500);
+}
+
+function setMessage(id, message, type = "") {
+  const element = $(id);
+  if (!element) return;
+  element.textContent = message;
+  element.className = "message" + (type ? " " + type : "");
+}
+
+function setLoading(id, message) {
+  const element = $(id);
+  if (element) {
+    element.textContent = message;
+    element.className = "empty";
+  }
 }
 
 function detectPlatform(service) {
@@ -54,20 +83,7 @@ function detectCategory(service) {
   return service.category || "Other Services";
 }
 
-function showToast(message) {
-  const toast = $("toast");
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 3000);
-}
-
-function setMessage(id, message, type = "") {
-  const element = $(id);
-  if (!element) return;
-  element.textContent = message;
-  element.className = "message" + (type ? " " + type : "");
-}
+/* AUTHENTICATION */
 
 function openAuth(mode) {
   authMode = mode;
@@ -91,13 +107,13 @@ async function handleAuth(event) {
   const email = $("email").value.trim();
   const password = $("password").value;
   const fullName = $("full-name").value.trim();
+  const submit = $("auth-submit");
 
   if (authMode === "signup" && !fullName) {
     setMessage("auth-message", "Please enter your full name.");
     return;
   }
 
-  const submit = $("auth-submit");
   submit.disabled = true;
   submit.textContent = "Please wait...";
 
@@ -106,9 +122,7 @@ async function handleAuth(event) {
       const { data, error } = await client.auth.signUp({
         email,
         password,
-        options: {
-          data: { full_name: fullName }
-        }
+        options: { data: { full_name: fullName } }
       });
 
       if (error) throw error;
@@ -120,16 +134,12 @@ async function handleAuth(event) {
       } else {
         setMessage(
           "auth-message",
-          "Account created. Please check your email if confirmation is required.",
+          "Account created. Check your email if confirmation is required.",
           "success"
         );
       }
     } else {
-      const { error } = await client.auth.signInWithPassword({
-        email,
-        password
-      });
-
+      const { error } = await client.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       setMessage("auth-message", "Login successful.", "success");
@@ -144,68 +154,77 @@ async function handleAuth(event) {
   }
 }
 
-/* USER ROLE AND SESSION */
+async function logout() {
+  const { error } = await client.auth.signOut();
+  if (error) {
+    showToast(error.message);
+    return;
+  }
+  await refreshSession();
+  showToast("Logged out successfully.");
+}
+
+/* SESSION AND ROLE */
 
 async function refreshSession() {
-  const { data } = await client.auth.getSession();
-  currentUser = data.session?.user || null;
-  currentRole = "customer";
+  const { data, error } = await client.auth.getSession();
+  if (error) console.error(error);
+
+  currentUser = data?.session?.user || null;
+  currentProfile = null;
+  isAdmin = false;
 
   if (currentUser) {
-    const { data: profile, error } = await client
+    const { data: profile, error: profileError } = await client
       .from("profiles")
-      .select("role,full_name")
+      .select("id,email,full_name,role")
       .eq("id", currentUser.id)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      console.error("Profile loading error:", error);
-      showToast("Unable to verify your account role.");
+    if (profileError) {
+      console.error("Profile loading error:", profileError);
     } else {
-      currentRole = profile?.role || "customer";
+      currentProfile = profile;
+      isAdmin = profile?.role === "admin";
     }
   }
-
-  const isAdmin = currentUser && currentRole === "admin";
 
   $("login-open").classList.toggle("hidden", !!currentUser);
   $("signup-open").classList.toggle("hidden", !!currentUser);
   $("logout").classList.toggle("hidden", !currentUser);
-
   $("admin-nav").classList.toggle("hidden", !isAdmin);
   $("admin-dashboard").classList.toggle("hidden", !isAdmin);
 
   $("user-label").textContent = currentUser
-    ? (currentUser.user_metadata?.full_name || currentUser.email)
+    ? (currentProfile?.full_name || currentUser.email)
     : "";
 
   $("auth-status").textContent = currentUser
     ? (isAdmin ? "Signed in as administrator" : "Signed in as " + currentUser.email)
     : "Sign in to view your account";
 
+  $("account-info").textContent = currentUser
+    ? `Welcome, ${currentProfile?.full_name || currentUser.email}. Your account is active.`
+    : "Your account activity will appear here after login.";
+
   $("topup-amount").disabled = !currentUser;
   $("topup-utr").disabled = !currentUser;
   $("topup-form").querySelector("button").disabled = !currentUser;
 
   if (currentUser) {
-    await loadWalletRequests();
-    if (isAdmin) {
-      await loadAdminDashboard();
-    }
+    await Promise.all([
+      loadWalletRequests(),
+      loadWalletBalance()
+    ]);
   } else {
     $("wallet-requests").textContent = "Sign in to view requests.";
-    clearAdminDashboard();
+    $("customer-balance").textContent = "₹—";
+    $("customer-balance-message").textContent = "Sign in to view your balance.";
   }
-}
 
-function clearAdminDashboard() {
-  $("admin-customer-count").textContent = "—";
-  $("admin-order-count").textContent = "—";
-  $("admin-pending-count").textContent = "—";
-  $("admin-service-count").textContent = "—";
-  $("admin-wallet-list").textContent = "Admin login required.";
-  $("admin-customer-list").textContent = "Admin login required.";
-  $("admin-order-list").textContent = "Admin login required.";
+  if (isAdmin) {
+    await loadAdminDashboard();
+  }
 }
 
 /* SERVICES */
@@ -244,7 +263,6 @@ function updateCategoryOptions() {
 
   const select = $("category-filter");
   const previous = select.value;
-
   select.innerHTML = '<option value="all">All categories</option>';
 
   categories.forEach(category => {
@@ -254,9 +272,7 @@ function updateCategoryOptions() {
     select.appendChild(option);
   });
 
-  if (categories.includes(previous)) {
-    select.value = previous;
-  }
+  if (categories.includes(previous)) select.value = previous;
 }
 
 function renderServices() {
@@ -322,16 +338,12 @@ function selectService(id) {
   $("selected-service-rate").textContent = formatRupees(selectedService.rate);
   $("selected-service-min").textContent = selectedService.min_quantity;
   $("selected-service-max").textContent = selectedService.max_quantity;
-  $("order-message").textContent =
-    "Service selected. Order placement is not active yet.";
+  $("order-message").textContent = "Service selected. Order placement is not active yet.";
 
-  $("order-now").scrollIntoView({
-    behavior: "smooth",
-    block: "center"
-  });
+  $("order-now").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-/* CUSTOMER WALLET REQUESTS */
+/* CUSTOMER WALLET */
 
 async function submitTopup(event) {
   event.preventDefault();
@@ -359,29 +371,18 @@ async function submitTopup(event) {
   button.textContent = "Submitting...";
 
   try {
-    const { error } = await client
-      .from("wallet_requests")
-      .insert({
-        user_id: currentUser.id,
-        amount,
-        utr_reference: utr,
-        status: "pending"
-      });
+    const { error } = await client.from("wallet_requests").insert({
+      user_id: currentUser.id,
+      amount,
+      utr_reference: utr,
+      status: "pending"
+    });
 
     if (error) throw error;
 
-    setMessage(
-      "topup-message",
-      "Your request was submitted for manual verification.",
-      "success"
-    );
-
+    setMessage("topup-message", "Request submitted for manual verification.", "success");
     $("topup-form").reset();
     await loadWalletRequests();
-
-    if (currentRole === "admin") {
-      await loadAdminDashboard();
-    }
   } catch (error) {
     setMessage("topup-message", error.message || "Unable to submit request.");
   } finally {
@@ -399,14 +400,14 @@ async function loadWalletRequests() {
   try {
     const { data, error } = await client
       .from("wallet_requests")
-      .select("id,amount,utr_reference,status,created_at")
+      .select("id,amount,utr_reference,status,created_at,admin_note")
       .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
       .limit(10);
 
     if (error) throw error;
 
-    if (!data || !data.length) {
+    if (!data?.length) {
       holder.textContent = "No top-up requests yet.";
       return;
     }
@@ -415,11 +416,10 @@ async function loadWalletRequests() {
       <div class="request-row">
         <div>
           <strong>${formatRupees(request.amount)}</strong>
-          <small>${escapeHTML(request.utr_reference)}</small>
+          <small>${escapeHTML(request.utr_reference)} · ${formatDate(request.created_at)}</small>
+          ${request.admin_note ? `<small>Admin note: ${escapeHTML(request.admin_note)}</small>` : ""}
         </div>
-        <span class="request-status ${escapeHTML(request.status)}">
-          ${escapeHTML(request.status)}
-        </span>
+        <span class="request-status ${escapeHTML(request.status)}">${escapeHTML(request.status)}</span>
       </div>
     `).join("");
   } catch (error) {
@@ -428,10 +428,30 @@ async function loadWalletRequests() {
   }
 }
 
+async function loadWalletBalance() {
+  if (!currentUser) return;
+
+  try {
+    const { data, error } = await client.rpc("wallet_balance");
+    if (error) throw error;
+
+    $("customer-balance").textContent = formatRupees(data);
+    $("customer-balance-message").textContent = "Balance from your wallet ledger.";
+  } catch (error) {
+    $("customer-balance").textContent = "Unavailable";
+    $("customer-balance-message").textContent = "Balance could not be loaded.";
+    console.error("Wallet balance error:", error);
+  }
+}
+
 /* ADMIN DASHBOARD */
 
 async function loadAdminDashboard() {
-  if (!currentUser || currentRole !== "admin") return;
+  if (!currentUser || !isAdmin) return;
+
+  setLoading("admin-wallet-list", "Loading wallet requests...");
+  setLoading("admin-customer-list", "Loading customers...");
+  setLoading("admin-order-list", "Loading orders...");
 
   await Promise.all([
     loadAdminStats(),
@@ -446,133 +466,161 @@ async function loadAdminStats() {
     const results = await Promise.all([
       client.from("profiles").select("id", { count: "exact", head: true }),
       client.from("orders").select("id", { count: "exact", head: true }),
-      client.from("wallet_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending"),
-      client.from("services").select("id", { count: "exact", head: true })
+      client.from("wallet_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      client.from("services").select("id", { count: "exact", head: true }).eq("active", true)
     ]);
 
-    results.forEach(result => {
-      if (result.error) throw result.error;
-    });
+    const [customers, orders, pending, serviceCount] = results;
 
-    $("admin-customer-count").textContent = results[0].count ?? "—";
-    $("admin-order-count").textContent = results[1].count ?? "—";
-    $("admin-pending-count").textContent = results[2].count ?? "—";
-    $("admin-service-count").textContent = results[3].count ?? "—";
+    if (customers.error) throw customers.error;
+    if (orders.error) throw orders.error;
+    if (pending.error) throw pending.error;
+    if (serviceCount.error) throw serviceCount.error;
+
+    $("admin-customer-count").textContent = customers.count ?? 0;
+    $("admin-order-count").textContent = orders.count ?? 0;
+    $("admin-pending-count").textContent = pending.count ?? 0;
+    $("admin-service-count").textContent = serviceCount.count ?? 0;
   } catch (error) {
-    console.error("Admin statistics error:", error);
-    showToast("Unable to load some dashboard statistics.");
+    setMessage("admin-message", "Some dashboard statistics could not be loaded: " + error.message);
+    console.error("Admin stats error:", error);
   }
 }
 
 async function loadAdminWalletRequests() {
+  if (!isAdmin) return;
+
   const holder = $("admin-wallet-list");
-
-  if (currentRole !== "admin") return;
-
-  holder.textContent = "Loading wallet requests...";
 
   try {
     const { data, error } = await client
       .from("wallet_requests")
-      .select("id,user_id,amount,utr_reference,status,admin_note,created_at")
+      .select("id,user_id,amount,utr_reference,status,created_at,admin_note")
       .order("created_at", { ascending: false })
       .limit(100);
 
     if (error) throw error;
 
-    if (!data || !data.length) {
+    if (!data?.length) {
       holder.textContent = "No wallet requests found.";
       return;
     }
 
-    holder.innerHTML = data.map(request => `
-      <div class="admin-request-row">
-        <div class="admin-request-details">
-          <strong>${formatRupees(request.amount)}</strong>
-          <small>UTR: ${escapeHTML(request.utr_reference)}</small>
-          <small>User ID: ${escapeHTML(request.user_id)}</small>
-          <small>${formatDate(request.created_at)}</small>
-          <span class="request-status ${escapeHTML(request.status)}">
-            ${escapeHTML(request.status)}
-          </span>
-          ${request.admin_note ? `<small>Note: ${escapeHTML(request.admin_note)}</small>` : ""}
-        </div>
-        ${request.status === "pending" ? `
-          <div class="admin-actions">
-            <button class="btn btn-small approve-wallet" data-id="${escapeHTML(request.id)}">Approve</button>
-            <button class="btn btn-small btn-danger reject-wallet" data-id="${escapeHTML(request.id)}">Reject</button>
+    const userIds = [...new Set(data.map(item => item.user_id))];
+    const { data: profiles, error: profileError } = await client
+      .from("profiles")
+      .select("id,email,full_name")
+      .in("id", userIds);
+
+    if (profileError) throw profileError;
+
+    const profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
+
+    holder.innerHTML = data.map(request => {
+      const profile = profileMap.get(request.user_id) || {};
+      const pending = request.status === "pending";
+
+      return `
+        <div class="admin-request-row">
+          <div class="admin-request-details">
+            <strong>${formatRupees(request.amount)} · ${escapeHTML(profile.full_name || profile.email || "Customer")}</strong>
+            <small>Email: ${escapeHTML(profile.email || "Not available")}</small>
+            <small>UTR: ${escapeHTML(request.utr_reference)}</small>
+            <small>Submitted: ${formatDate(request.created_at)}</small>
+            <span class="request-status ${escapeHTML(request.status)}">${escapeHTML(request.status)}</span>
+            ${request.admin_note ? `<small>Note: ${escapeHTML(request.admin_note)}</small>` : ""}
           </div>
-        ` : ""}
-      </div>
-    `).join("");
+          ${pending ? `
+            <div class="admin-actions">
+              <button class="btn btn-small approve-wallet" data-id="${escapeHTML(request.id)}">Approve</button>
+              <button class="btn btn-small btn-danger reject-wallet" data-id="${escapeHTML(request.id)}">Reject</button>
+            </div>
+          ` : ""}
+        </div>
+      `;
+    }).join("");
   } catch (error) {
-    holder.textContent = "Unable to load wallet requests.";
+    holder.textContent = "Unable to load wallet requests: " + error.message;
     console.error("Admin wallet error:", error);
   }
 }
 
-async function reviewWalletRequest(id, action) {
-  if (!currentUser || currentRole !== "admin") {
-    showToast("Administrator access required.");
-    return;
+async function approveWalletRequest(requestId) {
+  if (!isAdmin) return;
+
+  const confirmed = confirm(
+    "Approve this wallet request?\n\nOnly approve after independently verifying the payment in your UPI app."
+  );
+
+  if (!confirmed) return;
+
+  setMessage("admin-message", "Processing approval...");
+
+  try {
+    const { error } = await client.rpc("approve_wallet_request", {
+      p_request_id: requestId,
+      p_admin_note: "Payment manually verified by administrator."
+    });
+
+    if (error) throw error;
+
+    showToast("Wallet request approved.");
+    setMessage("admin-message", "Request approved and ledger credit recorded.", "success");
+
+    await Promise.all([
+      loadAdminWalletRequests(),
+      loadAdminStats()
+    ]);
+  } catch (error) {
+    setMessage("admin-message", "Approval failed: " + error.message);
+    console.error("Approval error:", error);
   }
+}
 
-  const note = action === "rejected"
-    ? (prompt("Enter a reason for rejecting this request:") || "").trim()
-    : (prompt("Optional admin note:") || "").trim();
+async function rejectWalletRequest(requestId) {
+  if (!isAdmin) return;
 
-  if (action === "rejected" && !note) {
+  const note = prompt("Enter a reason for rejecting this request:");
+  if (note === null) return;
+
+  if (!note.trim()) {
     showToast("Please enter a rejection reason.");
     return;
   }
 
-  if (!confirm(`Are you sure you want to ${action} this wallet request?`)) {
-    return;
-  }
+  setMessage("admin-message", "Processing rejection...");
 
   try {
-    let error;
-
-    if (action === "approved") {
-      const result = await client.rpc("approve_wallet_request", {
-        p_request_id: id,
-        p_admin_note: note || null
-      });
-      error = result.error;
-    } else {
-      const result = await client
-        .from("wallet_requests")
-        .update({
-          status: "rejected",
-          admin_note: note,
-          reviewed_by: currentUser.id,
-          reviewed_at: new Date().toISOString()
-        })
-        .eq("id", id)
-        .eq("status", "pending");
-
-      error = result.error;
-    }
+    const { error } = await client
+      .from("wallet_requests")
+      .update({
+        status: "rejected",
+        admin_note: note.trim(),
+        reviewed_by: currentUser.id,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq("id", requestId)
+      .eq("status", "pending");
 
     if (error) throw error;
 
-    showToast(`Wallet request ${action}.`);
-    await loadAdminDashboard();
-    await loadWalletRequests();
+    showToast("Wallet request rejected.");
+    setMessage("admin-message", "Request rejected.", "success");
+
+    await Promise.all([
+      loadAdminWalletRequests(),
+      loadAdminStats()
+    ]);
   } catch (error) {
-    console.error("Wallet review error:", error);
-    showToast(error.message || "Unable to review this request.");
+    setMessage("admin-message", "Rejection failed: " + error.message);
+    console.error("Rejection error:", error);
   }
 }
 
 async function loadAdminCustomers() {
+  if (!isAdmin) return;
+
   const holder = $("admin-customer-list");
-
-  if (currentRole !== "admin") return;
-
-  holder.textContent = "Loading customers...";
 
   try {
     const { data, error } = await client
@@ -583,72 +631,28 @@ async function loadAdminCustomers() {
 
     if (error) throw error;
 
-    if (!data || !data.length) {
+    if (!data?.length) {
       holder.textContent = "No customer accounts found.";
       return;
     }
 
-    holder.innerHTML = data.map(customer => `
+    holder.innerHTML = data.map(profile => `
       <div class="admin-list-row">
         <div>
-          <strong>${escapeHTML(customer.full_name || "No name")}</strong>
-          <small>${escapeHTML(customer.email)}</small>
-          <small>${formatDate(customer.created_at)}</small>
+          <strong>${escapeHTML(profile.full_name || "Unnamed customer")}</strong>
+          <small>${escapeHTML(profile.email || "")}</small>
+          <small>Joined: ${formatDate(profile.created_at)}</small>
         </div>
-        <span class="request-status ${customer.role === "admin" ? "approved" : "pending"}">
-          ${escapeHTML(customer.role)}
-        </span>
+        <span class="request-status">${escapeHTML(profile.role)}</span>
       </div>
     `).join("");
   } catch (error) {
-    holder.textContent = "Unable to load customers.";
-    console.error("Admin customers error:", error);
-  }
-}
-
-async function loadAdminOrders() {
-  const holder = $("admin-order-list");
-
-  if (currentRole !== "admin") return;
-
-  holder.textContent = "Loading orders...";
-
-  try {
-    const { data, error } = await client
-      .from("orders")
-      .select("id,user_id,service_name,target_url,quantity,charge,status,created_at")
-      .order("created_at", { ascending: false })
-      .limit(100);
-
-    if (error) throw error;
-
-    if (!data || !data.length) {
-      holder.textContent = "No orders found.";
-      return;
-    }
-
-    holder.innerHTML = data.map(order => `
-      <div class="admin-list-row">
-        <div>
-          <strong>${escapeHTML(order.service_name || "Service")}</strong>
-          <small>Quantity: ${escapeHTML(order.quantity)}</small>
-          <small>Charge: ${formatRupees(order.charge)}</small>
-          <small>Customer ID: ${escapeHTML(order.user_id)}</small>
-          <small>Target: ${escapeHTML(order.target_url || "—")}</small>
-          <small>${formatDate(order.created_at)}</small>
-        </div>
-        <span class="request-status ${escapeHTML(order.status)}">
-          ${escapeHTML(order.status)}
-        </span>
-      </div>
-    `).join("");
-  } catch (error) {
-    holder.textContent = "Unable to load orders.";
+    holder.textContent = "Unable to load customers: " + error.message;
     console.error("Admin orders error:", error);
   }
 }
 
-/* EVENTS */
+/* EVENT HANDLERS */
 
 function setupEvents() {
   $("login-open").addEventListener("click", () => openAuth("login"));
@@ -660,21 +664,51 @@ function setupEvents() {
   });
 
   $("auth-form").addEventListener("submit", handleAuth);
-
-  $("logout").addEventListener("click", async () => {
-    const { error } = await client.auth.signOut();
-
-    if (error) {
-      showToast(error.message);
-      return;
-    }
-
-    await refreshSession();
-    showToast("Logged out successfully.");
-  });
+  $("logout").addEventListener("click", logout);
 
   $("service-search").addEventListener("input", renderServices);
 
   $("platform-filter").addEventListener("change", () => {
     $("category-filter").value = "all";
-    upd
+    updateCategoryOptions();
+    renderServices();
+  });
+
+  $("category-filter").addEventListener("change", renderServices);
+
+  $("services-list").addEventListener("click", event => {
+    const button = event.target.closest(".select-service");
+    if (button) selectService(button.dataset.id);
+  });
+
+  $("refresh-services").addEventListener("click", loadServices);
+  $("topup-form").addEventListener("submit", submitTopup);
+
+  $("admin-refresh-wallet").addEventListener("click", loadAdminWalletRequests);
+  $("admin-refresh-customers").addEventListener("click", loadAdminCustomers);
+  $("admin-refresh-orders").addEventListener("click", loadAdminOrders);
+
+  $("admin-wallet-list").addEventListener("click", event => {
+    const approve = event.target.closest(".approve-wallet");
+    const reject = event.target.closest(".reject-wallet");
+
+    if (approve) approveWalletRequest(approve.dataset.id);
+    if (reject) rejectWalletRequest(reject.dataset.id);
+  });
+
+  client.auth.onAuthStateChange(() => {
+    setTimeout(() => refreshSession(), 0);
+  });
+}
+
+/* START APPLICATION */
+
+async function init() {
+  setupEvents();
+  await Promise.all([
+    refreshSession(),
+    loadServices()
+  ]);
+}
+
+document.addEventListener("DOMContentLoaded", init);
