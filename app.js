@@ -880,6 +880,67 @@ return `
   }
 }
 
+async function loadAdminOrders() {
+  if (!currentUser || !isAdmin) return;
+
+  const holder = $("admin-order-list");
+  if (!holder) return;
+
+  holder.textContent = "Loading orders...";
+
+  try {
+    const { data, error } = await client
+      .from("orders")
+      .select("id,user_id,provider_order_id,service_name,target_url,quantity,charge,status,start_count,remains,created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      holder.textContent = "No orders found yet.";
+      return;
+    }
+
+    const userIds = [...new Set(data.map(order => order.user_id))];
+
+    const { data: profiles, error: profileError } = await client
+      .from("profiles")
+      .select("id,email,full_name")
+      .in("id", userIds);
+
+    if (profileError) throw profileError;
+
+    const profileMap = new Map(
+      (profiles || []).map(profile => [profile.id, profile])
+    );
+
+    holder.innerHTML = data.map(order => {
+      const profile = profileMap.get(order.user_id) || {};
+
+      return `
+        <div class="admin-list-row">
+          <div>
+            <strong>${escapeHTML(order.service_name || "Service")}</strong>
+            <small>Customer: ${escapeHTML(profile.full_name || profile.email || "Unknown")}</small>
+            <small>Email: ${escapeHTML(profile.email || "Unavailable")}</small>
+            <small>Quantity: ${escapeHTML(order.quantity)}</small>
+            <small>Charge: ${formatRupees(order.charge)}</small>
+            <small>Target: ${escapeHTML(order.target_url || "Not available")}</small>
+            <small>Status: ${escapeHTML(order.status || "Unknown")}</small>
+            <small>Provider ID: ${escapeHTML(order.provider_order_id || "Not assigned")}</small>
+            <small>Date: ${formatDate(order.created_at)}</small>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (error) {
+    holder.textContent = "Unable to load orders: " + error.message;
+    console.error("Admin orders error:", error);
+  }
+}
+
 /* EVENT HANDLERS */
 
 function setupEvents() {
