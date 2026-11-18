@@ -1,6 +1,8 @@
-// FOLLOWBULK - Supabase browser configuration
-// Keep only the public publishable key here.
-// NEVER add a Supabase secret or service_role key.
+
+// ==========================================
+// FOLLOWBULK - CUSTOMER APPLICATION
+// Supabase configuration
+// ==========================================
 
 const SUPABASE_URL = "https://genylcxbfrjkwfaepmjc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_sT79tQnCQVGHXMn7sDXBew_pmih3eJ6";
@@ -13,8 +15,13 @@ const client = window.supabase.createClient(
 const $ = (id) => document.getElementById(id);
 
 let authMode = "login";
+let allServices = [];
+let servicesById = new Map();
 
-// Safe HTML output
+// ==========================================
+// SAFE HTML
+// ==========================================
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;",
@@ -25,9 +32,15 @@ function escapeHtml(value) {
   }[c]));
 }
 
-// Notifications
+// ==========================================
+// NOTIFICATIONS
+// ==========================================
+
 function toast(message) {
   const element = $("toast");
+
+  if (!element) return;
+
   element.textContent = message;
   element.classList.add("show");
 
@@ -36,7 +49,10 @@ function toast(message) {
   }, 3200);
 }
 
-// Authentication dialog
+// ==========================================
+// AUTHENTICATION DIALOG
+// ==========================================
+
 function openAuth(mode) {
   authMode = mode;
 
@@ -54,6 +70,7 @@ function openAuth(mode) {
       : "New here? Create an account";
 
   $("auth-message").textContent = "";
+
   $("auth-dialog").showModal();
 }
 
@@ -65,7 +82,10 @@ $("auth-switch").onclick = () => {
   openAuth(authMode === "signup" ? "login" : "signup");
 };
 
-// Logout
+// ==========================================
+// LOGOUT
+// ==========================================
+
 $("logout").onclick = async () => {
   const { error } = await client.auth.signOut();
 
@@ -75,10 +95,14 @@ $("logout").onclick = async () => {
   }
 
   toast("You are signed out.");
+
   await refreshSession();
 };
 
-// Login and signup
+// ==========================================
+// LOGIN AND SIGNUP
+// ==========================================
+
 $("auth-form").addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -103,6 +127,7 @@ $("auth-form").addEventListener("submit", async (event) => {
           }
         }
       });
+
     } else {
       result = await client.auth.signInWithPassword({
         email,
@@ -119,7 +144,9 @@ $("auth-form").addEventListener("submit", async (event) => {
 
     if (authMode === "login" || result.data.session) {
       $("auth-dialog").close();
+
       await refreshSession();
+
       toast("Welcome to Followbulk!");
     }
 
@@ -132,7 +159,10 @@ $("auth-form").addEventListener("submit", async (event) => {
   }
 });
 
-// Refresh account information
+// ==========================================
+// REFRESH CUSTOMER SESSION
+// ==========================================
+
 async function refreshSession() {
   try {
     const {
@@ -167,17 +197,52 @@ async function refreshSession() {
 
   } catch (error) {
     console.error("Session error:", error);
+
     $("auth-status").textContent =
       "Unable to check your session. Please refresh.";
   }
 }
 
-// Watch login and logout changes
-client.auth.onAuthStateChange(() => {
-  refreshSession();
-});
+// ==========================================
+// PLATFORM DETECTION
+// ==========================================
 
-// Load active services
+function getServicePlatform(service) {
+  const text = [
+    service.name,
+    service.category,
+    service.description
+  ].join(" ").toLowerCase();
+
+  if (text.includes("instagram") || /\big\b/.test(text)) {
+    return "instagram";
+  }
+
+  if (text.includes("youtube") || /\byt\b/.test(text)) {
+    return "youtube";
+  }
+
+  if (text.includes("facebook") || /\bfb\b/.test(text)) {
+    return "facebook";
+  }
+
+  if (text.includes("telegram")) {
+    return "telegram";
+  }
+
+  return "other";
+}
+
+function serviceMatchesPlatform(service, platform) {
+  if (platform === "all") return true;
+
+  return getServicePlatform(service) === platform;
+}
+
+// ==========================================
+// LOAD SERVICES
+// ==========================================
+
 async function loadServices() {
   const holder = $("services-list");
 
@@ -194,17 +259,29 @@ async function loadServices() {
       )
       .eq("active", true)
       .order("category")
-      .limit(60);
+      .limit(1000);
 
     if (error) throw error;
 
-    if (!data || data.length === 0) {
+    allServices = data || [];
+
+    servicesById = new Map(
+      allServices.map(service => [
+        String(service.id),
+        service
+      ])
+    );
+
+    if (allServices.length === 0) {
       holder.innerHTML =
-        '<div class="empty">No services have been published yet. The admin needs to sync and activate the service catalogue.</div>';
+        '<div class="empty">No services have been published yet.</div>';
+
+      updateOrderServices();
+
       return;
     }
 
-    holder.innerHTML = data.map((service) => `
+    holder.innerHTML = allServices.map((service) => `
       <article class="service-card">
         <div class="eyebrow">
           ${escapeHtml(service.category || "GENERAL")}
@@ -229,8 +306,18 @@ async function loadServices() {
             ${Number(service.max_quantity).toLocaleString("en-IN")}
           </b>
         </div>
+
+        <button
+          type="button"
+          class="btn btn-light service-order-btn"
+          data-service-id="${escapeHtml(service.id)}"
+        >
+          Quick Order
+        </button>
       </article>
     `).join("");
+
+    updateOrderServices();
 
   } catch (error) {
     console.error("Service loading error:", error);
@@ -245,7 +332,160 @@ async function loadServices() {
 
 $("refresh-services").onclick = loadServices;
 
-// Load customer's own top-up requests
+// ==========================================
+// ORDER INTERFACE
+// ==========================================
+
+function updateOrderServices() {
+  const platform = $("order-platform").value;
+  const select = $("order-service");
+
+  const filteredServices = allServices.filter(service =>
+    serviceMatchesPlatform(service, platform)
+  );
+
+  select.innerHTML =
+    '<option value="">Choose a service</option>';
+
+  filteredServices.forEach(service => {
+    const option = document.createElement("option");
+
+    option.value = String(service.id);
+
+    option.textContent =
+      `${service.name} — ₹${Number(service.rate).toFixed(2)}/1000`;
+
+    select.appendChild(option);
+  });
+
+  if (filteredServices.length === 0) {
+    select.innerHTML =
+      '<option value="">No services found for this platform</option>';
+  }
+
+  updateOrderCalculation();
+}
+
+$("order-platform").addEventListener("change", () => {
+  updateOrderServices();
+});
+
+$("order-service").addEventListener("change", () => {
+  updateOrderCalculation();
+});
+
+$("order-quantity").addEventListener("input", () => {
+  updateOrderCalculation();
+});
+
+// ==========================================
+// ORDER PRICE CALCULATION
+// ==========================================
+
+function updateOrderCalculation() {
+  const serviceId = $("order-service").value;
+
+  const service = servicesById.get(serviceId);
+
+  const quantity = Number($("order-quantity").value);
+
+  if (!service) {
+    $("order-rate").textContent = "₹0.00";
+    $("order-charge").textContent = "₹0.00";
+
+    $("order-service-info").textContent =
+      "Select a service to view its details.";
+
+    return;
+  }
+
+  const rate = Number(service.rate);
+
+  const minimum = Number(service.min_quantity);
+  const maximum = Number(service.max_quantity);
+
+  $("order-rate").textContent =
+    `₹${rate.toFixed(2)}`;
+
+  $("order-service-info").innerHTML = `
+    <b>${escapeHtml(service.name)}</b>
+    <p>${escapeHtml(service.description || "Social media service")}</p>
+    <small>
+      Minimum: ${minimum.toLocaleString("en-IN")}
+      · Maximum: ${maximum.toLocaleString("en-IN")}
+    </small>
+  `;
+
+  if (
+    !Number.isFinite(quantity) ||
+    !Number.isInteger(quantity) ||
+    quantity < minimum ||
+    quantity > maximum
+  ) {
+    $("order-charge").textContent = "₹0.00";
+    return;
+  }
+
+  const charge = (rate * quantity) / 1000;
+
+  $("order-charge").textContent =
+    `₹${charge.toFixed(2)}`;
+}
+
+// ==========================================
+// QUICK ORDER BUTTONS
+// ==========================================
+
+$("services-list").addEventListener("click", (event) => {
+  const button = event.target.closest(".service-order-btn");
+
+  if (!button) return;
+
+  const serviceId = button.dataset.serviceId;
+
+  const service = servicesById.get(serviceId);
+
+  if (!service) {
+    toast("Service not found. Please refresh the catalogue.");
+    return;
+  }
+
+  const platform = getServicePlatform(service);
+
+  $("order-platform").value =
+    platform === "other" ? "all" : platform;
+
+  updateOrderServices();
+
+  $("order-service").value = serviceId;
+
+  updateOrderCalculation();
+
+  $("order-now").scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+
+  toast("Service selected. Enter your order details.");
+});
+
+// ==========================================
+// ORDER SUBMISSION SAFETY
+// ==========================================
+
+// Real order submission is intentionally disabled.
+// Do not enable this button until the secure
+// wallet deduction and GCSMM order backend is ready.
+
+$("place-order-btn").disabled = true;
+
+$("place-order-btn").textContent =
+  "Ordering coming soon";
+
+// ==========================================
+// LOAD CUSTOMER TOP-UP REQUESTS
+// ==========================================
+
 async function loadWalletRequests(userId) {
   const holder = $("wallet-requests");
 
@@ -265,16 +505,20 @@ async function loadWalletRequests(userId) {
     if (!data || data.length === 0) {
       holder.innerHTML =
         '<div class="empty">No top-up requests yet.</div>';
+
       return;
     }
 
     holder.innerHTML = data.map((request) => `
       <div class="request-row">
         <b>₹${Number(request.amount).toFixed(2)}</b>
+
         <span class="request-status">
           ${escapeHtml(request.status)}
         </span>
+
         <br>
+
         <small>
           ${escapeHtml(request.utr_reference || "")}
           ·
@@ -291,7 +535,10 @@ async function loadWalletRequests(userId) {
   }
 }
 
-// Submit a manual UPI top-up request
+// ==========================================
+// SUBMIT MANUAL UPI TOP-UP REQUEST
+// ==========================================
+
 $("topup-form").addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -306,6 +553,7 @@ $("topup-form").addEventListener("submit", async (event) => {
   }
 
   const amount = Number($("topup-amount").value);
+
   const utr = $("topup-utr").value.trim();
 
   if (
@@ -316,13 +564,16 @@ $("topup-form").addEventListener("submit", async (event) => {
   ) {
     $("topup-message").textContent =
       "Enter a valid whole-number amount and UPI reference.";
+
     return;
   }
 
   const button = $("topup-form").querySelector("button");
 
   button.disabled = true;
-  $("topup-message").textContent = "Submitting your request...";
+
+  $("topup-message").textContent =
+    "Submitting your request...";
 
   try {
     const { error } = await client
@@ -356,6 +607,18 @@ $("topup-form").addEventListener("submit", async (event) => {
   }
 });
 
-// Initial page loading
+// ==========================================
+// WATCH LOGIN AND LOGOUT CHANGES
+// ==========================================
+
+client.auth.onAuthStateChange(() => {
+  refreshSession();
+});
+
+// ==========================================
+// INITIAL PAGE LOADING
+// ==========================================
+
 loadServices();
+
 refreshSession();
