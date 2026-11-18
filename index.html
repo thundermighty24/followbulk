@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -15,11 +16,14 @@
       <span class="brand-mark">F</span>
       Follow<span>bulk</span>
     </a>
+
     <nav>
       <a href="#services">Services</a>
+      <a href="#order-now">Order Now</a>
       <a href="#dashboard">Dashboard</a>
       <a href="#how">How it works</a>
     </nav>
+
     <div class="nav-actions">
       <span id="user-label"></span>
       <button class="btn btn-ghost" id="login-open">Login</button>
@@ -29,24 +33,32 @@
   </header>
 
   <main>
+    <!-- HERO -->
     <section class="hero">
       <div class="hero-copy">
         <div class="eyebrow">WELCOME TO FOLLOWBULK</div>
+
         <h1>Your social growth.<br><span>One simple place.</span></h1>
+
         <p>
           Explore social media services, manage your account
           and keep track of your requests with Followbulk.
         </p>
+
         <div class="hero-actions">
           <a class="btn" href="#services">Explore services</a>
-          <button class="btn btn-light" id="hero-signup">Get started</button>
+          <button class="btn btn-light" id="hero-signup">
+            Get started
+          </button>
         </div>
+
         <div class="trust">
           <span>✓ Simple dashboard</span>
           <span>✓ Clear pricing</span>
           <span>✓ UPI top-up requests</span>
         </div>
       </div>
+
       <div class="hero-panel">
         <div class="panel-top">
           <span class="dot"></span>
@@ -54,13 +66,17 @@
           <span class="dot"></span>
           <small>FOLLOWBULK WORKSPACE</small>
         </div>
+
         <div class="growth-card">
           <small>YOUR SOCIAL WORKSPACE</small>
           <h2>Everything in one place.</h2>
           <p>Explore · Manage · Track</p>
+
           <div class="bars">
-            <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            <i></i><i></i><i></i><i></i>
+            <i></i><i></i><i></i>
           </div>
+
           <div class="panel-foot">
             <span>Your account</span>
             <b>Ready to explore</b>
@@ -69,6 +85,7 @@
       </div>
     </section>
 
+    <!-- SERVICES -->
     <section class="section" id="services">
       <div class="section-heading">
         <div>
@@ -76,15 +93,134 @@
           <h2>Explore services</h2>
           <p>Browse the services available on Followbulk.</p>
         </div>
+
         <button class="btn btn-light" id="refresh-services">
           Refresh catalogue
         </button>
       </div>
+
       <div id="services-list" class="service-grid">
         <div class="empty">Loading services...</div>
       </div>
     </section>
 
+    <!-- ORDER NOW -->
+    <section class="section" id="order-now">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">QUICK & EASY ORDERING</div>
+          <h2>Place an order</h2>
+          <p>Select a platform, service and quantity to get started.</p>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <article class="dash-card order-form-card">
+
+          <div class="eyebrow">NEW ORDER</div>
+          <h3>Order details</h3>
+
+          <label for="order-platform">
+            Select platform
+          </label>
+
+          <select id="order-platform">
+            <option value="all">All platforms</option>
+            <option value="instagram">Instagram</option>
+            <option value="youtube">YouTube</option>
+            <option value="facebook">Facebook</option>
+            <option value="telegram">Telegram</option>
+          </select>
+
+          <label for="order-service">
+            Select service
+          </label>
+
+          <select id="order-service" required>
+            <option value="">Loading services...</option>
+          </select>
+
+          <div id="order-service-info" class="account-note">
+            Select a service to view its details.
+          </div>
+
+          <label for="order-link">
+            Target link
+          </label>
+
+          <input
+            id="order-link"
+            type="url"
+            placeholder="Paste your profile or post link"
+            autocomplete="url"
+          >
+
+          <label for="order-quantity">
+            Quantity
+          </label>
+
+          <input
+            id="order-quantity"
+            type="number"
+            min="1"
+            step="1"
+            placeholder="Enter quantity"
+          >
+
+          <div class="order-summary">
+            <div>
+              <span>Rate per 1,000</span>
+              <b id="order-rate">₹0.00</b>
+            </div>
+
+            <div>
+              <span>Estimated charge</span>
+              <b id="order-charge">₹0.00</b>
+            </div>
+          </div>
+
+          <button
+            class="btn"
+            id="place-order-btn"
+            type="button"
+            disabled
+          >
+            Ordering coming soon
+          </button>
+
+          <p id="order-message" class="message">
+            Secure order processing is being prepared.
+          </p>
+        </article>
+
+        <article class="dash-card">
+          <div class="eyebrow">HOW TO ORDER</div>
+          <h3>Four simple steps</h3>
+
+          <div class="account-note">
+            <b>01. Choose platform</b>
+            <p>Select Instagram, YouTube, Facebook or Telegram.</p>
+          </div>
+
+          <div class="account-note">
+            <b>02. Select service</b>
+            <p>Choose the service you want from our catalogue.</p>
+          </div>
+
+          <div class="account-note">
+            <b>03. Enter details</b>
+            <p>Provide the target link and required quantity.</p>
+          </div>
+
+          <div class="account-note">
+            <b>04. Place order</b>
+            <p>Orders will be enabled after secure wallet and provider integration.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- CUSTOMER DASHBOARD -->
     <section class="section dashboard" id="dashboard">
       <div class="section-heading">
         <div>
@@ -92,136 +228,192 @@
           <h2>Your dashboard</h2>
           <p>Manage your Followbulk account in one place.</p>
         </div>
+
         <span id="auth-status" class="status">
           Sign in to view your account
         </span>
       </div>
 
       <div class="dash-grid">
+
+        <!-- ACCOUNT -->
         <article class="dash-card">
           <div class="eyebrow">ACCOUNT</div>
           <h3>Welcome to Followbulk</h3>
+
           <p>
             Sign in to manage your account and view your
             recent payment requests.
           </p>
+
           <div class="account-note">
             Your account activity will appear here after login.
           </div>
         </article>
 
+        <!-- WALLET TOP-UP -->
         <article class="dash-card">
           <div class="eyebrow">WALLET</div>
           <h3>UPI wallet top-up</h3>
+
           <p>
             Submit your payment reference for manual verification.
             Funds are not added automatically.
           </p>
+
           <form id="topup-form">
             <label>
               Amount (₹)
-              <input type="number" min="1" step="1"
-                id="topup-amount" required placeholder="Enter amount">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                id="topup-amount"
+                required
+                placeholder="Enter amount"
+              >
             </label>
+
             <label>
               UPI UTR / Reference
-              <input id="topup-utr" required maxlength="100"
-                placeholder="Enter payment reference">
+              <input
+                id="topup-utr"
+                required
+                maxlength="100"
+                placeholder="Enter payment reference"
+              >
             </label>
+
             <button class="btn" type="submit">
               Submit top-up request
             </button>
           </form>
+
           <p id="topup-message" class="message"></p>
         </article>
 
+        <!-- TOP-UP HISTORY -->
         <article class="dash-card">
           <div class="eyebrow">ACTIVITY</div>
           <h3>Recent top-up requests</h3>
+
           <div id="wallet-requests" class="empty">
             Sign in to view requests.
           </div>
         </article>
 
+        <!-- ORDER HISTORY PLACEHOLDER -->
         <article class="dash-card">
-          <div class="eyebrow">COMING NEXT</div>
-          <h3>Order management</h3>
+          <div class="eyebrow">ORDER HISTORY</div>
+          <h3>Your orders</h3>
+
           <p>
-            Order placement, order history, wallet balance
-            and tracking will be added after secure backend setup.
+            Track your orders, check their status and
+            view your previous transactions.
           </p>
-          <div class="account-note">
-            Your existing account and payment request data will be preserved.
+
+          <div id="order-history" class="account-note">
+            Your order history will appear here once
+            secure order processing is enabled.
           </div>
         </article>
+
       </div>
     </section>
 
+    <!-- HOW IT WORKS -->
     <section class="section how" id="how">
       <div class="eyebrow">HOW IT WORKS</div>
       <h2>Simple steps. Clear updates.</h2>
+
       <div class="steps">
         <article>
           <b>01</b>
           <h3>Create an account</h3>
           <p>Register to access your Followbulk dashboard.</p>
         </article>
+
         <article>
           <b>02</b>
           <h3>Explore services</h3>
           <p>Review available services and their pricing.</p>
         </article>
+
         <article>
           <b>03</b>
-          <h3>Track requests</h3>
-          <p>Check your account activity and request updates.</p>
+          <h3>Track orders</h3>
+          <p>Check your account activity and order updates.</p>
         </article>
       </div>
     </section>
   </main>
 
+  <!-- FOOTER -->
   <footer>
     <a class="brand" href="#">
       <span class="brand-mark">F</span>
       Follow<span>bulk</span>
     </a>
+
     <small>
       © 2026 Followbulk. Use services responsibly and follow
       each platform's terms.
     </small>
   </footer>
 
+  <!-- LOGIN / SIGNUP DIALOG -->
   <dialog id="auth-dialog">
+
     <form method="dialog" class="dialog-close">
       <button aria-label="Close">×</button>
     </form>
+
     <div class="eyebrow">WELCOME TO FOLLOWBULK</div>
     <h2 id="auth-title">Login</h2>
+
     <form id="auth-form">
+
       <label id="name-wrap" class="hidden">
         Full name
         <input id="full-name" autocomplete="name">
       </label>
+
       <label>
         Email
-        <input id="email" type="email" autocomplete="email" required>
+        <input
+          id="email"
+          type="email"
+          autocomplete="email"
+          required
+        >
       </label>
+
       <label>
         Password
-        <input id="password" type="password" minlength="6"
-          autocomplete="current-password" required>
+        <input
+          id="password"
+          type="password"
+          minlength="6"
+          autocomplete="current-password"
+          required
+        >
       </label>
+
       <button class="btn full" id="auth-submit" type="submit">
         Login
       </button>
+
       <p id="auth-message" class="message"></p>
     </form>
+
     <button class="text-button" id="auth-switch">
       New here? Create an account
     </button>
+
   </dialog>
 
   <div id="toast" role="status" class="toast"></div>
+
   <script src="app.js"></script>
 </body>
 </html>
