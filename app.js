@@ -1,4 +1,3 @@
-
 /* =========================================
    FOLLOWBULK - CUSTOMER + ADMIN APPLICATION
    ========================================= */
@@ -72,6 +71,7 @@ function detectPlatform(service) {
 
 function detectCategory(service) {
   const text = `${service.name || ""} ${service.category || ""} ${service.description || ""}`.toLowerCase();
+
   if (/follower|subscriber|member/.test(text)) return "Followers & Subscribers";
   if (/like|reaction/.test(text)) return "Likes & Reactions";
   if (/view|impression|watch/.test(text)) return "Views & Watch";
@@ -80,6 +80,7 @@ function detectCategory(service) {
   if (/save|bookmark/.test(text)) return "Saves";
   if (/story/.test(text)) return "Stories";
   if (/live|stream/.test(text)) return "Live & Streaming";
+
   return service.category || "Other Services";
 }
 
@@ -90,9 +91,11 @@ function openAuth(mode) {
   $("auth-title").textContent = mode === "signup" ? "Create account" : "Login";
   $("auth-submit").textContent = mode === "signup" ? "Create account" : "Login";
   $("name-wrap").classList.toggle("hidden", mode !== "signup");
+
   $("auth-switch").textContent = mode === "signup"
     ? "Already registered? Login"
     : "New here? Create an account";
+
   $("auth-message").textContent = "";
   $("auth-dialog").showModal();
 }
@@ -122,7 +125,9 @@ async function handleAuth(event) {
       const { data, error } = await client.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } }
+        options: {
+          data: { full_name: fullName }
+        }
       });
 
       if (error) throw error;
@@ -139,7 +144,11 @@ async function handleAuth(event) {
         );
       }
     } else {
-      const { error } = await client.auth.signInWithPassword({ email, password });
+      const { error } = await client.auth.signInWithPassword({
+        email,
+        password
+      });
+
       if (error) throw error;
 
       setMessage("auth-message", "Login successful.", "success");
@@ -156,10 +165,12 @@ async function handleAuth(event) {
 
 async function logout() {
   const { error } = await client.auth.signOut();
+
   if (error) {
     showToast(error.message);
     return;
   }
+
   await refreshSession();
   showToast("Logged out successfully.");
 }
@@ -168,6 +179,7 @@ async function logout() {
 
 async function refreshSession() {
   const { data, error } = await client.auth.getSession();
+
   if (error) console.error(error);
 
   currentUser = data?.session?.user || null;
@@ -200,7 +212,9 @@ async function refreshSession() {
     : "";
 
   $("auth-status").textContent = currentUser
-    ? (isAdmin ? "Signed in as administrator" : "Signed in as " + currentUser.email)
+    ? (isAdmin
+      ? "Signed in as administrator"
+      : "Signed in as " + currentUser.email)
     : "Sign in to view your account";
 
   $("account-info").textContent = currentUser
@@ -246,6 +260,7 @@ async function loadServices() {
     services = data || [];
     updateCategoryOptions();
     renderServices();
+
   } catch (error) {
     list.innerHTML = '<div class="empty">Unable to load services. Please refresh and try again.</div>';
     $("service-count").textContent = "Service catalogue unavailable";
@@ -255,14 +270,18 @@ async function loadServices() {
 
 function updateCategoryOptions() {
   const platform = $("platform-filter").value;
+
   const categories = [...new Set(
     services
-      .filter(service => platform === "all" || detectPlatform(service) === platform)
+      .filter(service =>
+        platform === "all" || detectPlatform(service) === platform
+      )
       .map(detectCategory)
   )].sort();
 
   const select = $("category-filter");
   const previous = select.value;
+
   select.innerHTML = '<option value="all">All categories</option>';
 
   categories.forEach(category => {
@@ -272,7 +291,9 @@ function updateCategoryOptions() {
     select.appendChild(option);
   });
 
-  if (categories.includes(previous)) select.value = previous;
+  if (categories.includes(previous)) {
+    select.value = previous;
+  }
 }
 
 function renderServices() {
@@ -283,6 +304,7 @@ function renderServices() {
   const filtered = services.filter(service => {
     const servicePlatform = detectPlatform(service);
     const serviceCategory = detectCategory(service);
+
     const searchable = [
       service.name,
       service.category,
@@ -317,30 +339,44 @@ function renderServices() {
           <span>${escapeHTML(detectCategory(service))}</span>
         </div>
       </div>
+
       <div class="service-price">
         <strong>${formatRupees(service.rate)}</strong>
         <small>per 1,000</small>
       </div>
+
       <div class="service-limits">
         <small>Min: ${escapeHTML(service.min_quantity)}</small>
         <small>Max: ${escapeHTML(service.max_quantity)}</small>
       </div>
-      <button class="btn btn-small select-service" data-id="${escapeHTML(service.id)}">Select</button>
+
+      <button class="btn btn-small select-service"
+        data-id="${escapeHTML(service.id)}">
+        Select
+      </button>
     </article>
   `).join("");
 }
 
 function selectService(id) {
-  selectedService = services.find(service => String(service.id) === String(id));
+  selectedService = services.find(
+    service => String(service.id) === String(id)
+  );
+
   if (!selectedService) return;
 
   $("selected-service-name").value = selectedService.name;
   $("selected-service-rate").textContent = formatRupees(selectedService.rate);
   $("selected-service-min").textContent = selectedService.min_quantity;
   $("selected-service-max").textContent = selectedService.max_quantity;
-  $("order-message").textContent = "Service selected. Order placement is not active yet.";
 
-  $("order-now").scrollIntoView({ behavior: "smooth", block: "center" });
+  $("order-message").textContent =
+    "Service selected. Order placement is not active yet.";
+
+  $("order-now").scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
 }
 
 /* CUSTOMER WALLET */
@@ -349,7 +385,10 @@ async function submitTopup(event) {
   event.preventDefault();
 
   if (!currentUser) {
-    setMessage("topup-message", "Please login before submitting a top-up request.");
+    setMessage(
+      "topup-message",
+      "Please login before submitting a top-up request."
+    );
     return;
   }
 
@@ -371,18 +410,26 @@ async function submitTopup(event) {
   button.textContent = "Submitting...";
 
   try {
-    const { error } = await client.from("wallet_requests").insert({
-      user_id: currentUser.id,
-      amount,
-      utr_reference: utr,
-      status: "pending"
-    });
+    const { error } = await client
+      .from("wallet_requests")
+      .insert({
+        user_id: currentUser.id,
+        amount,
+        utr_reference: utr,
+        status: "pending"
+      });
 
     if (error) throw error;
 
-    setMessage("topup-message", "Request submitted for manual verification.", "success");
+    setMessage(
+      "topup-message",
+      "Request submitted for manual verification.",
+      "success"
+    );
+
     $("topup-form").reset();
     await loadWalletRequests();
+
   } catch (error) {
     setMessage("topup-message", error.message || "Unable to submit request.");
   } finally {
@@ -416,12 +463,22 @@ async function loadWalletRequests() {
       <div class="request-row">
         <div>
           <strong>${formatRupees(request.amount)}</strong>
-          <small>${escapeHTML(request.utr_reference)} · ${formatDate(request.created_at)}</small>
-          ${request.admin_note ? `<small>Admin note: ${escapeHTML(request.admin_note)}</small>` : ""}
+          <small>
+            ${escapeHTML(request.utr_reference)}
+            · ${formatDate(request.created_at)}
+          </small>
+
+          ${request.admin_note
+            ? `<small>Admin note: ${escapeHTML(request.admin_note)}</small>`
+            : ""}
         </div>
-        <span class="request-status ${escapeHTML(request.status)}">${escapeHTML(request.status)}</span>
+
+        <span class="request-status ${escapeHTML(request.status)}">
+          ${escapeHTML(request.status)}
+        </span>
       </div>
     `).join("");
+
   } catch (error) {
     holder.textContent = "Unable to load your requests.";
     console.error("Wallet request error:", error);
@@ -433,13 +490,18 @@ async function loadWalletBalance() {
 
   try {
     const { data, error } = await client.rpc("wallet_balance");
+
     if (error) throw error;
 
     $("customer-balance").textContent = formatRupees(data);
-    $("customer-balance-message").textContent = "Balance from your wallet ledger.";
+    $("customer-balance-message").textContent =
+      "Balance from your wallet ledger.";
+
   } catch (error) {
     $("customer-balance").textContent = "Unavailable";
-    $("customer-balance-message").textContent = "Balance could not be loaded.";
+    $("customer-balance-message").textContent =
+      "Balance could not be loaded.";
+
     console.error("Wallet balance error:", error);
   }
 }
@@ -464,10 +526,19 @@ async function loadAdminDashboard() {
 async function loadAdminStats() {
   try {
     const results = await Promise.all([
-      client.from("profiles").select("id", { count: "exact", head: true }),
-      client.from("orders").select("id", { count: "exact", head: true }),
-      client.from("wallet_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      client.from("services").select("id", { count: "exact", head: true }).eq("active", true)
+      client.from("profiles")
+        .select("id", { count: "exact", head: true }),
+
+      client.from("orders")
+        .select("id", { count: "exact", head: true }),
+
+      client.from("wallet_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending"),
+
+      client.from("services")
+        .select("id", { count: "exact", head: true })
+        .eq("active", true)
     ]);
 
     const [customers, orders, pending, serviceCount] = results;
@@ -481,8 +552,13 @@ async function loadAdminStats() {
     $("admin-order-count").textContent = orders.count ?? 0;
     $("admin-pending-count").textContent = pending.count ?? 0;
     $("admin-service-count").textContent = serviceCount.count ?? 0;
+
   } catch (error) {
-    setMessage("admin-message", "Some dashboard statistics could not be loaded: " + error.message);
+    setMessage(
+      "admin-message",
+      "Some dashboard statistics could not be loaded: " + error.message
+    );
+
     console.error("Admin stats error:", error);
   }
 }
@@ -497,7 +573,7 @@ async function loadAdminWalletRequests() {
       .from("wallet_requests")
       .select("id,user_id,amount,utr_reference,status,created_at,admin_note")
       .order("created_at", { ascending: false })
-      .limit(100);
+     .limit(100);
 
     if (error) throw error;
 
@@ -507,6 +583,7 @@ async function loadAdminWalletRequests() {
     }
 
     const userIds = [...new Set(data.map(item => item.user_id))];
+
     const { data: profiles, error: profileError } = await client
       .from("profiles")
       .select("id,email,full_name")
@@ -514,41 +591,62 @@ async function loadAdminWalletRequests() {
 
     if (profileError) throw profileError;
 
-    const profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
-
-    holder.innerHTML = data.map(request => {
+    const profileMap = new Map(
+      (profiles || []).map(profile => [profile.id, profile])
+    );
+holder.innerHTML = data.map(request => {
       const profile = profileMap.get(request.user_id) || {};
       const pending = request.status === "pending";
 
       return `
         <div class="admin-request-row">
           <div class="admin-request-details">
-            <strong>${formatRupees(request.amount)} · ${escapeHTML(profile.full_name || profile.email || "Customer")}</strong>
+            <strong>
+              ${formatRupees(request.amount)}
+              · ${escapeHTML(profile.full_name || profile.email || "Customer")}
+            </strong>
+
             <small>Email: ${escapeHTML(profile.email || "Not available")}</small>
             <small>UTR: ${escapeHTML(request.utr_reference)}</small>
             <small>Submitted: ${formatDate(request.created_at)}</small>
-            <span class="request-status ${escapeHTML(request.status)}">${escapeHTML(request.status)}</span>
-            ${request.admin_note ? `<small>Note: ${escapeHTML(request.admin_note)}</small>` : ""}
+
+            <span class="request-status ${escapeHTML(request.status)}">
+              ${escapeHTML(request.status)}
+            </span>
+
+            ${request.admin_note
+              ? `<small>Note: ${escapeHTML(request.admin_note)}</small>`
+              : ""}
           </div>
+
           ${pending ? `
             <div class="admin-actions">
-              <button class="btn btn-small approve-wallet" data-id="${escapeHTML(request.id)}">Approve</button>
-              <button class="btn btn-small btn-danger reject-wallet" data-id="${escapeHTML(request.id)}">Reject</button>
+              <button class="btn btn-small approve-wallet"
+                data-id="${escapeHTML(request.id)}">
+                Approve
+              </button>
+
+              <button class="btn btn-small btn-danger reject-wallet"
+                data-id="${escapeHTML(request.id)}">
+                Reject
+              </button>
             </div>
           ` : ""}
         </div>
       `;
     }).join("");
+
   } catch (error) {
-    holder.textContent = "Unable to load wallet requests: " + error.message;
+    holder.textContent =
+      "Unable to load wallet requests: " + error.message;
+
     console.error("Admin wallet error:", error);
   }
 }
 
 async function approveWalletRequest(requestId) {
   if (!isAdmin) return;
-
-  const confirmed = confirm(
+const confirmed = confirm(
     "Approve this wallet request?\n\nOnly approve after independently verifying the payment in your UPI app."
   );
 
@@ -565,12 +663,18 @@ async function approveWalletRequest(requestId) {
     if (error) throw error;
 
     showToast("Wallet request approved.");
-    setMessage("admin-message", "Request approved and ledger credit recorded.", "success");
+
+    setMessage(
+      "admin-message",
+      "Request approved and ledger credit recorded.",
+      "success"
+    );
 
     await Promise.all([
       loadAdminWalletRequests(),
       loadAdminStats()
     ]);
+
   } catch (error) {
     setMessage("admin-message", "Approval failed: " + error.message);
     console.error("Approval error:", error);
@@ -581,14 +685,14 @@ async function rejectWalletRequest(requestId) {
   if (!isAdmin) return;
 
   const note = prompt("Enter a reason for rejecting this request:");
+
   if (note === null) return;
 
   if (!note.trim()) {
     showToast("Please enter a rejection reason.");
     return;
   }
-
-  setMessage("admin-message", "Processing rejection...");
+setMessage("admin-message", "Processing rejection...");
 
   try {
     const { error } = await client
@@ -605,17 +709,21 @@ async function rejectWalletRequest(requestId) {
     if (error) throw error;
 
     showToast("Wallet request rejected.");
+
     setMessage("admin-message", "Request rejected.", "success");
 
     await Promise.all([
       loadAdminWalletRequests(),
       loadAdminStats()
     ]);
+
   } catch (error) {
     setMessage("admin-message", "Rejection failed: " + error.message);
     console.error("Rejection error:", error);
   }
 }
+
+/* ADMIN CUSTOMERS */
 
 async function loadAdminCustomers() {
   if (!isAdmin) return;
@@ -625,7 +733,7 @@ async function loadAdminCustomers() {
   try {
     const { data, error } = await client
       .from("profiles")
-      .select("id,email,full_name,role,created_at")
+     .select("id,email,full_name,role,created_at")
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -643,11 +751,131 @@ async function loadAdminCustomers() {
           <small>${escapeHTML(profile.email || "")}</small>
           <small>Joined: ${formatDate(profile.created_at)}</small>
         </div>
-        <span class="request-status">${escapeHTML(profile.role)}</span>
+
+        <span class="request-status">
+          ${escapeHTML(profile.role)}
+        </span>
       </div>
     `).join("");
+
   } catch (error) {
-    holder.textContent = "Unable to load customers: " + error.message;
+    holder.textContent =
+      "Unable to load customers: " + error.message;
+
+    console.error("Admin customers error:", error);
+  }
+}
+
+/* ADMIN ORDERS - ADDED MISSING FUNCTION */
+
+async function loadAdminOrders() {
+  if (!currentUser || !isAdmin) return;
+
+  const holder = $("admin-order-list");
+
+  if (!holder) return;
+
+  holder.textContent = "Loading orders...";
+
+try {
+    const { data: orders, error } = await client
+      .from("orders")
+      .select(`
+        id,
+        user_id,
+        provider_order_id,
+        service_name,
+        target_url,
+        quantity,
+        charge,
+        status,
+        start_count,
+        remains,
+        created_at
+      `)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    if (!orders || orders.length === 0) {
+      holder.textContent = "No orders found.";
+      return;
+    }
+
+    const userIds = [
+      ...new Set(orders.map(order => order.user_id))
+    ];
+
+    const { data: profiles, error: profileError } = await client
+      .from("profiles")
+      .select("id,email,full_name")
+      .in("id", userIds);
+
+    if (profileError) throw profileError;
+
+    const profileMap = new Map(
+      (profiles || []).map(profile => [profile.id, profile])
+    );
+
+    holder.innerHTML = orders.map(order => {
+      const profile = profileMap.get(order.user_id) || {};
+
+return `
+        <div class="admin-list-row">
+          <div>
+            <strong>${escapeHTML(order.service_name || "Service")}</strong>
+
+            <small>
+              Customer:
+              ${escapeHTML(profile.full_name || profile.email || "Unknown")}
+            </small>
+
+            <small>
+              Email: ${escapeHTML(profile.email || "Unavailable")}
+            </small>
+
+            <small>
+              Target: ${escapeHTML(order.target_url || "—")}
+            </small>
+
+            <small>
+              Quantity: ${escapeHTML(order.quantity)}
+            </small>
+
+            <small>
+              Charge: ${formatRupees(order.charge)}
+            </small>
+
+            <small>
+              Provider order:
+              ${escapeHTML(order.provider_order_id || "Not submitted")}
+            </small>
+
+            <small>
+              Start count: ${escapeHTML(order.start_count ?? "—")}
+            </small>
+
+            <small>
+              Remaining: ${escapeHTML(order.remains ?? "—")}
+            </small>
+
+            <small>
+              Created: ${formatDate(order.created_at)}
+            </small>
+          </div>
+
+<span class="request-status ${escapeHTML(order.status || "pending")}">
+            ${escapeHTML(order.status || "pending")}
+          </span>
+        </div>
+      `;
+    }).join("");
+
+  } catch (error) {
+    holder.textContent =
+      "Unable to load orders: " + error.message;
+
     console.error("Admin orders error:", error);
   }
 }
@@ -674,26 +902,45 @@ function setupEvents() {
     renderServices();
   });
 
-  $("category-filter").addEventListener("change", renderServices);
+$("category-filter").addEventListener("change", renderServices);
 
   $("services-list").addEventListener("click", event => {
     const button = event.target.closest(".select-service");
-    if (button) selectService(button.dataset.id);
+
+    if (button) {
+      selectService(button.dataset.id);
+    }
   });
 
   $("refresh-services").addEventListener("click", loadServices);
   $("topup-form").addEventListener("submit", submitTopup);
 
-  $("admin-refresh-wallet").addEventListener("click", loadAdminWalletRequests);
-  $("admin-refresh-customers").addEventListener("click", loadAdminCustomers);
-  $("admin-refresh-orders").addEventListener("click", loadAdminOrders);
+  $("admin-refresh-wallet").addEventListener(
+    "click",
+    loadAdminWalletRequests
+  );
+
+  $("admin-refresh-customers").addEventListener(
+    "click",
+    loadAdminCustomers
+  );
+
+  $("admin-refresh-orders").addEventListener(
+    "click",
+    loadAdminOrders
+  );
 
   $("admin-wallet-list").addEventListener("click", event => {
     const approve = event.target.closest(".approve-wallet");
     const reject = event.target.closest(".reject-wallet");
 
-    if (approve) approveWalletRequest(approve.dataset.id);
-    if (reject) rejectWalletRequest(reject.dataset.id);
+    if (approve) {
+      approveWalletRequest(approve.dataset.id);
+    }
+
+    if (reject) {
+      rejectWalletRequest(reject.dataset.id);
+    }
   });
 
   client.auth.onAuthStateChange(() => {
@@ -705,6 +952,7 @@ function setupEvents() {
 
 async function init() {
   setupEvents();
+
   await Promise.all([
     refreshSession(),
     loadServices()
