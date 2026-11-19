@@ -1,5 +1,7 @@
+
 /* =========================================
    FOLLOWBULK - CUSTOMER + ADMIN APPLICATION
+   WITH PRICING MANAGEMENT
    ========================================= */
 
 const SUPABASE_URL = "https://genylcxbfrjkwfaepmjc.supabase.co";
@@ -14,7 +16,14 @@ let currentProfile = null;
 let isAdmin = false;
 let services = [];
 let selectedService = null;
+let selectedPricingService = null;
 let authMode = "login";
+
+let defaultMarkup = 30;
+let categoryMarkups = {};
+let pricingViewData = {};
+
+/* BASIC HELPERS */
 
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -60,12 +69,19 @@ function setLoading(id, message) {
   }
 }
 
+function validMarkup(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 && number <= 10000;
+}
+
 function detectPlatform(service) {
   const text = `${service.name || ""} ${service.category || ""}`.toLowerCase();
+
   if (/instagram|\binsta\b/.test(text)) return "instagram";
   if (/youtube|\byt\b/.test(text)) return "youtube";
   if (/facebook|\bfb\b/.test(text)) return "facebook";
   if (/telegram|\btg\b/.test(text)) return "telegram";
+
   return "other";
 }
 
@@ -88,6 +104,7 @@ function detectCategory(service) {
 
 function openAuth(mode) {
   authMode = mode;
+
   $("auth-title").textContent = mode === "signup" ? "Create account" : "Login";
   $("auth-submit").textContent = mode === "signup" ? "Create account" : "Login";
   $("name-wrap").classList.toggle("hidden", mode !== "signup");
@@ -230,14 +247,25 @@ async function refreshSession() {
       loadWalletRequests(),
       loadWalletBalance()
     ]);
+
+    if (services.length) {
+      await loadCustomerPrices();
+    }
   } else {
     $("wallet-requests").textContent = "Sign in to view requests.";
     $("customer-balance").textContent = "₹—";
     $("customer-balance-message").textContent = "Sign in to view your balance.";
+
+    services.forEach(service => {
+      service.customer_rate = null;
+    });
+
+    renderServices();
   }
 
   if (isAdmin) {
     await loadAdminDashboard();
+    await loadAdminPricing();
   }
 }
 
@@ -250,7 +278,7 @@ async function loadServices() {
   try {
     const { data, error } = await client
       .from("services")
-      .select("id,name,category,description,rate,min_quantity,max_quantity")
+      .select("id,name,category,description,rate,min_quantity,max_quantity,markup_percent")
       .eq("active", true)
       .order("category", { ascending: true })
       .limit(1000);
@@ -258,8 +286,18 @@ async function loadServices() {
     if (error) throw error;
 
     services = data || [];
+
     updateCategoryOptions();
-    renderServices();
+
+    if (currentUser) {
+      await loadCustomerPrices();
+    } else {
+      renderServices();
+    }
+
+    if (isAdmin) {
+      await loadAdminPricing();
+    }
 
   } catch (error) {
     list.innerHTML = '<div class="empty">Unable to load services. Please refresh and try again.</div>';
@@ -267,6 +305,56 @@ async function loadServices() {
     console.error("Service loading error:", error);
   }
 }
+
+/* CUSTOMER SELLING PRICES */
+
+async function loadCustomerPrices() {
+  if (!currentUser || !services.length) {
+    renderServices();
+    return;
+  }
+
+  try {
+    const { data, error } = await client
+      .from("services_with_pricing")
+      .select("*")
+      .limit(1000);
+
+    if (error) throw error;
+
+    pricingViewData = {};
+
+    (data || []).forEach(item => {
+      pricingViewData[String(item.id)] = item;
+    });
+
+    services = services.map(service => {
+      const pricing = pricingViewData[String(service.id)];
+
+      return {
+        ...service,
+        customer_rate: pricing ? Number(pricing.customer_rate) : null,
+        effective_markup: pricing
+          ? Number(pricing.effective_markup ?? pricing.markup_percent)
+          : null
+      };
+    });
+
+    renderServices();
+
+  } catch (error) {
+    console.error("Customer pricing could not be loaded:", error);
+
+    services = services.map(service => ({
+      ...service,
+      customer_rate: null
+    }));
+
+    renderServices();
+  }
+}
+
+/* SERVICE CATEGORY FILTERS */
 
 function updateCategoryOptions() {
   const platform = $("platform-filter").value;
@@ -341,7 +429,11 @@ function renderServices() {
       </div>
 
       <div class="service-price">
-        <strong>${formatRupees(service.rate)}</strong>
+        <strong>${
+          Number.isFinite(Number(service.customer_rate))
+            ? formatRupees(service.customer_rate)
+            : "Login to view price"
+        }</strong>
         <small>per 1,000</small>
       </div>
 
@@ -366,7 +458,12 @@ function selectService(id) {
   if (!selectedService) return;
 
   $("selected-service-name").value = selectedService.name;
-  $("selected-service-rate").textContent = formatRupees(selectedService.rate);
+
+  $("selected-service-rate").textContent =
+    Number.isFinite(Number(selectedService.customer_rate))
+      ? formatRupees(selectedService.customer_rate)
+      : "Login to view price";
+
   $("selected-service-min").textContent = selectedService.min_quantity;
   $("selected-service-max").textContent = selectedService.max_quantity;
 
@@ -573,7 +670,7 @@ async function loadAdminWalletRequests() {
       .from("wallet_requests")
       .select("id,user_id,amount,utr_reference,status,created_at,admin_note")
       .order("created_at", { ascending: false })
-     .limit(100);
+      .limit(100);
 
     if (error) throw error;
 
@@ -594,7 +691,8 @@ async function loadAdminWalletRequests() {
     const profileMap = new Map(
       (profiles || []).map(profile => [profile.id, profile])
     );
-holder.innerHTML = data.map(request => {
+
+    holder.innerHTML = data.map(request => {
       const profile = profileMap.get(request.user_id) || {};
       const pending = request.status === "pending";
 
@@ -646,7 +744,8 @@ holder.innerHTML = data.map(request => {
 
 async function approveWalletRequest(requestId) {
   if (!isAdmin) return;
-const confirmed = confirm(
+
+  const confirmed = confirm(
     "Approve this wallet request?\n\nOnly approve after independently verifying the payment in your UPI app."
   );
 
@@ -692,7 +791,8 @@ async function rejectWalletRequest(requestId) {
     showToast("Please enter a rejection reason.");
     return;
   }
-setMessage("admin-message", "Processing rejection...");
+
+  setMessage("admin-message", "Processing rejection...");
 
   try {
     const { error } = await client
@@ -703,7 +803,7 @@ setMessage("admin-message", "Processing rejection...");
         reviewed_by: currentUser.id,
         reviewed_at: new Date().toISOString()
       })
-      .eq("id", requestId)
+     .eq("id", requestId)
       .eq("status", "pending");
 
     if (error) throw error;
@@ -733,7 +833,7 @@ async function loadAdminCustomers() {
   try {
     const { data, error } = await client
       .from("profiles")
-     .select("id,email,full_name,role,created_at")
+      .select("id,email,full_name,role,created_at")
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -766,18 +866,17 @@ async function loadAdminCustomers() {
   }
 }
 
-/* ADMIN ORDERS - ADDED MISSING FUNCTION */
+/* ADMIN ORDERS */
 
 async function loadAdminOrders() {
   if (!currentUser || !isAdmin) return;
 
   const holder = $("admin-order-list");
-
   if (!holder) return;
 
   holder.textContent = "Loading orders...";
 
-try {
+  try {
     const { data: orders, error } = await client
       .from("orders")
       .select(`
@@ -798,14 +897,12 @@ try {
 
     if (error) throw error;
 
-    if (!orders || orders.length === 0) {
+    if (!orders?.length) {
       holder.textContent = "No orders found.";
       return;
     }
 
-    const userIds = [
-      ...new Set(orders.map(order => order.user_id))
-    ];
+   const userIds = [...new Set(orders.map(order => order.user_id))];
 
     const { data: profiles, error: profileError } = await client
       .from("profiles")
@@ -821,51 +918,26 @@ try {
     holder.innerHTML = orders.map(order => {
       const profile = profileMap.get(order.user_id) || {};
 
-return `
+      return `
         <div class="admin-list-row">
           <div>
             <strong>${escapeHTML(order.service_name || "Service")}</strong>
 
             <small>
-              Customer:
-              ${escapeHTML(profile.full_name || profile.email || "Unknown")}
+              Customer: ${escapeHTML(profile.full_name || profile.email || "Unknown")}
             </small>
 
-            <small>
-              Email: ${escapeHTML(profile.email || "Unavailable")}
-            </small>
-
-            <small>
-              Target: ${escapeHTML(order.target_url || "—")}
-            </small>
-
-            <small>
-              Quantity: ${escapeHTML(order.quantity)}
-            </small>
-
-            <small>
-              Charge: ${formatRupees(order.charge)}
-            </small>
-
-            <small>
-              Provider order:
-              ${escapeHTML(order.provider_order_id || "Not submitted")}
-            </small>
-
-            <small>
-              Start count: ${escapeHTML(order.start_count ?? "—")}
-            </small>
-
-            <small>
-              Remaining: ${escapeHTML(order.remains ?? "—")}
-            </small>
-
-            <small>
-              Created: ${formatDate(order.created_at)}
-            </small>
+            <small>Email: ${escapeHTML(profile.email || "Unavailable")}</small>
+            <small>Target: ${escapeHTML(order.target_url || "—")}</small>
+            <small>Quantity: ${escapeHTML(order.quantity)}</small>
+            <small>Charge: ${formatRupees(order.charge)}</small>
+            <small>Provider order: ${escapeHTML(order.provider_order_id || "Not submitted")}</small>
+            <small>Start count: ${escapeHTML(order.start_count ?? "—")}</small>
+            <small>Remaining: ${escapeHTML(order.remains ?? "—")}</small>
+            <small>Created: ${formatDate(order.created_at)}</small>
           </div>
 
-<span class="request-status ${escapeHTML(order.status || "pending")}">
+          <span class="request-status ${escapeHTML(order.status || "pending")}">
             ${escapeHTML(order.status || "pending")}
           </span>
         </div>
@@ -879,69 +951,477 @@ return `
     console.error("Admin orders error:", error);
   }
 }
+/* =========================================
+   ADMIN PRICING MANAGEMENT
+   ========================================= */
 
-async function loadAdminOrders() {
+/* Load default markup, category markup and service pricing */
+
+async function loadAdminPricing() {
   if (!currentUser || !isAdmin) return;
 
-  const holder = $("admin-order-list");
-  if (!holder) return;
-
-  holder.textContent = "Loading orders...";
+  setMessage("admin-pricing-message", "Loading pricing settings...");
 
   try {
-    const { data, error } = await client
-      .from("orders")
-      .select("id,user_id,provider_order_id,service_name,target_url,quantity,charge,status,start_count,remains,created_at")
-      .order("created_at", { ascending: false })
-      .limit(100);
+    const { data: settings, error: settingsError } = await client
+      .from("followbulk_pricing_settings")
+      .select("default_markup")
+      .eq("id", true)
+      .maybeSingle();
 
-    if (error) throw error;
+    if (settingsError) throw settingsError;
 
-    if (!data || data.length === 0) {
-      holder.textContent = "No orders found yet.";
-      return;
+    defaultMarkup = Number(settings?.default_markup ?? 30);
+
+    if ($("default-markup")) {
+      $("default-markup").value = defaultMarkup;
     }
 
-    const userIds = [...new Set(data.map(order => order.user_id))];
+    const { data: categories, error: categoryError } = await client
+      .from("followbulk_category_pricing")
+      .select("category,markup_percent")
+      .order("category");
 
-    const { data: profiles, error: profileError } = await client
-      .from("profiles")
-      .select("id,email,full_name")
-      .in("id", userIds);
+    if (categoryError) throw categoryError;
 
-    if (profileError) throw profileError;
+    categoryMarkups = {};
 
-    const profileMap = new Map(
-      (profiles || []).map(profile => [profile.id, profile])
-    );
+    (categories || []).forEach(item => {
+      categoryMarkups[item.category] = Number(item.markup_percent);
+    });
 
-    holder.innerHTML = data.map(order => {
-      const profile = profileMap.get(order.user_id) || {};
+    populatePricingCategories();
+    renderPricingServiceList();
 
-      return `
-        <div class="admin-list-row">
-          <div>
-            <strong>${escapeHTML(order.service_name || "Service")}</strong>
-            <small>Customer: ${escapeHTML(profile.full_name || profile.email || "Unknown")}</small>
-            <small>Email: ${escapeHTML(profile.email || "Unavailable")}</small>
-            <small>Quantity: ${escapeHTML(order.quantity)}</small>
-            <small>Charge: ${formatRupees(order.charge)}</small>
-            <small>Target: ${escapeHTML(order.target_url || "Not available")}</small>
-            <small>Status: ${escapeHTML(order.status || "Unknown")}</small>
-            <small>Provider ID: ${escapeHTML(order.provider_order_id || "Not assigned")}</small>
-            <small>Date: ${formatDate(order.created_at)}</small>
-          </div>
-        </div>
-      `;
-    }).join("");
+    setMessage("admin-pricing-message", "Pricing settings loaded.", "success");
 
   } catch (error) {
-    holder.textContent = "Unable to load orders: " + error.message;
-    console.error("Admin orders error:", error);
+    setMessage(
+      "admin-pricing-message",
+      "Unable to load pricing settings: " + error.message
+    );
+     console.error("Admin pricing load error:", error);
   }
 }
 
-/* EVENT HANDLERS */
+/* Populate the category selector using real service categories */
+
+function populatePricingCategories() {
+  const select = $("pricing-category");
+  if (!select) return;
+
+  const previous = select.value;
+
+  const categories = [...new Set(
+    services
+      .map(service => service.category)
+      .filter(Boolean)
+  )].sort();
+
+  select.innerHTML = '<option value="">Choose a category</option>';
+
+  categories.forEach(category => {
+    const option = document.createElement("option");
+    option.value = category;
+    option.textContent = category;
+    select.appendChild(option);
+  });
+
+  if (categories.includes(previous)) {
+    select.value = previous;
+  }
+
+  updateCategoryMarkupField();
+}
+
+function updateCategoryMarkupField() {
+  const category = $("pricing-category")?.value;
+  const input = $("category-markup");
+
+  if (!input) return;
+
+  if (!category) {
+    input.value = "";
+    return;
+  }
+
+  input.value = Object.prototype.hasOwnProperty.call(categoryMarkups, category)
+    ? categoryMarkups[category]
+    : "";
+}
+
+/* Save default markup */
+
+async function saveDefaultMarkup() {
+  if (!isAdmin) return;
+
+  const value = Number($("default-markup")?.value);
+
+  if (!validMarkup(value)) {
+    setMessage(
+      "admin-pricing-message",
+      "Enter a markup between 0 and 10000."
+    );
+    return;
+  }
+
+  const button = $("save-default-markup");
+  if (button) button.disabled = true;
+
+  setMessage("admin-pricing-message", "Saving default markup...");
+
+  try {
+    const { error } = await client
+      .from("followbulk_pricing_settings")
+      .update({
+        default_markup: value,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", true);
+
+    if (error) throw error;
+
+    defaultMarkup = value;
+
+    setMessage(
+      "admin-pricing-message",
+      "Default markup saved successfully.",
+      "success"
+    );
+
+    showToast("Default markup updated.");
+
+    await refreshPricingAfterChange();
+
+  } catch (error) {
+    setMessage(
+      "admin-pricing-message",
+      "Unable to save default markup: " + error.message
+    );
+
+    console.error("Default markup save error:", error);
+  } finally {
+    if (button) button.disabled = false;
+  }
+   }
+
+/* Save category markup */
+
+async function saveCategoryMarkup() {
+  if (!isAdmin) return;
+
+  const category = $("pricing-category")?.value;
+  const value = Number($("category-markup")?.value);
+
+  if (!category) {
+    setMessage("category-pricing-message", "Please choose a category.");
+    return;
+  }
+
+  if (!validMarkup(value)) {
+    setMessage(
+      "category-pricing-message",
+      "Enter a markup between 0 and 10000."
+    );
+    return;
+  }
+
+  const button = $("save-category-markup");
+  if (button) button.disabled = true;
+
+  setMessage("category-pricing-message", "Saving category markup...");
+
+  try {
+    const { error } = await client
+      .from("followbulk_category_pricing")
+      .upsert({
+        category,
+        markup_percent: value,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: "category"
+      });
+
+    if (error) throw error;
+
+    categoryMarkups[category] = value;
+
+    setMessage(
+      "category-pricing-message",
+      "Category markup saved successfully.",
+      "success"
+    );
+     showToast("Category markup updated.");
+
+    await refreshPricingAfterChange();
+
+  } catch (error) {
+    setMessage(
+      "category-pricing-message",
+      "Unable to save category markup: " + error.message
+    );
+
+    console.error("Category markup save error:", error);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+/* Reset category markup to default */
+
+async function resetCategoryMarkup() {
+  if (!isAdmin) return;
+
+  const category = $("pricing-category")?.value;
+
+  if (!category) {
+    setMessage("category-pricing-message", "Please choose a category.");
+    return;
+  }
+
+  if (!confirm(`Remove the custom markup for ${category}?`)) return;
+
+  setMessage("category-pricing-message", "Resetting category markup...");
+
+  try {
+    const { error } = await client
+      .from("followbulk_category_pricing")
+      .delete()
+      .eq("category", category);
+
+    if (error) throw error;
+
+    delete categoryMarkups[category];
+
+    updateCategoryMarkupField();
+
+    setMessage(
+      "category-pricing-message",
+      "Category markup removed. It will now use the default markup unless a service has its own markup.",
+      "success"
+    );
+     await refreshPricingAfterChange();
+
+  } catch (error) {
+    setMessage(
+      "category-pricing-message",
+      "Unable to reset category markup: " + error.message
+    );
+
+    console.error("Category markup reset error:", error);
+  }
+}
+
+/* Render searchable individual service list */
+
+function renderPricingServiceList() {
+  const holder = $("pricing-service-list");
+  if (!holder) return;
+
+  const search = ($("pricing-service-search")?.value || "")
+    .trim()
+    .toLowerCase();
+
+  const filtered = services.filter(service => {
+    const searchable = [
+      service.name,
+      service.category,
+      service.description,
+      service.id
+    ].join(" ").toLowerCase();
+
+    return searchable.includes(search);
+  });
+
+  if (!filtered.length) {
+    holder.innerHTML = '<div class="empty">No matching services found.</div>';
+    return;
+  }
+
+  holder.innerHTML = filtered.map(service => `
+    <div class="admin-list-row">
+      <div>
+        <strong>${escapeHTML(service.name)}</strong>
+        <small>${escapeHTML(service.category || "Uncategorized")}</small>
+        <small>Provider rate: ${formatRupees(service.rate)} per 1,000</small>
+      </div>
+
+      <button class="btn btn-small pricing-select-service"
+        data-id="${escapeHTML(service.id)}">
+        Edit markup
+      </button>
+    </div>
+  `).join("");
+}
+
+/* Select one service for individual markup editing */
+
+function selectPricingService(id) {
+  selectedPricingService = services.find(
+    service => String(service.id) === String(id)
+  );
+
+  if (!selectedPricingService) return;
+
+  const service = selectedPricingService;
+
+  const individualMarkup = service.markup_percent;
+  const categoryMarkup = categoryMarkups[service.category];
+
+  let effectiveMarkup = defaultMarkup;
+
+  if (categoryMarkup !== undefined) {
+    effectiveMarkup = categoryMarkup;
+  }
+
+  if (individualMarkup !== null && individualMarkup !== undefined) {
+    effectiveMarkup = Number(individualMarkup);
+  }
+
+  const customerRate =
+    Number(service.rate) * (1 + effectiveMarkup / 100);
+
+  $("individual-pricing-editor").classList.remove("hidden");
+
+  $("pricing-selected-service").textContent = service.name;
+
+  $("pricing-provider-rate").textContent =
+    formatRupees(service.rate) + " per 1,000";
+
+  $("pricing-current-markup").textContent =
+    effectiveMarkup + "%";
+
+  $("pricing-customer-rate").textContent =
+    formatRupees(customerRate) + " per 1,000";
+
+  $("individual-markup").value =
+    individualMarkup === null || individualMarkup === undefined
+      ? ""
+      : individualMarkup;
+
+  setMessage(
+    "individual-pricing-message",
+    individualMarkup === null || individualMarkup === undefined
+      ? "This service inherits its markup from its category or the default setting."
+      : "This service has an individual markup override."
+  );
+}
+
+/* Save individual service markup */
+
+async function saveIndividualMarkup() {
+  if (!isAdmin || !selectedPricingService) {
+    setMessage("individual-pricing-message", "Select a service first.");
+    return;
+  }
+
+  const value = Number($("individual-markup")?.value);
+
+  if (!validMarkup(value)) {
+    setMessage(
+      "individual-pricing-message",
+      "Enter a markup between 0 and 10000."
+    );
+    return;
+  }
+
+  const button = $("save-individual-markup");
+  if (button) button.disabled = true;
+
+  setMessage("individual-pricing-message", "Saving individual markup...");
+
+  try {
+    const { error } = await client
+      .from("services")
+      .update({
+        markup_percent: value
+      })
+      .eq("id", selectedPricingService.id);
+
+    if (error) throw error;
+
+    selectedPricingService.markup_percent = value;
+
+    setMessage(
+      "individual-pricing-message",
+      "Individual service markup saved successfully.",
+      "success"
+    );
+
+    showToast("Individual service markup updated.");
+
+    await refreshPricingAfterChange();
+
+    selectPricingService(selectedPricingService.id);
+
+  } catch (error) {
+    setMessage(
+      "individual-pricing-message",
+      "Unable to save individual markup: " + error.message
+    );
+     console.error("Individual markup save error:", error);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+/* Reset individual markup to category/default */
+
+async function resetIndividualMarkup() {
+  if (!isAdmin || !selectedPricingService) {
+    setMessage("individual-pricing-message", "Select a service first.");
+    return;
+  }
+
+  if (!confirm("Remove this service's individual markup?")) return;
+
+  setMessage("individual-pricing-message", "Resetting individual markup...");
+
+  try {
+    const { error } = await client
+      .from("services")
+      .update({
+        markup_percent: null
+      })
+      .eq("id", selectedPricingService.id);
+
+    if (error) throw error;
+
+    selectedPricingService.markup_percent = null;
+
+    setMessage(
+      "individual-pricing-message",
+      "Individual markup removed. The service will inherit category or default markup.",
+      "success"
+    );
+
+    await refreshPricingAfterChange();
+
+    selectPricingService(selectedPricingService.id);
+
+  } catch (error) {
+    setMessage(
+      "individual-pricing-message",
+      "Unable to reset individual markup: " + error.message
+    );
+
+    console.error("Individual markup reset error:", error);
+  }
+}
+
+/* Refresh customer prices and admin pricing after a change */
+
+async function refreshPricingAfterChange() {
+  await loadAdminPricing();
+
+  if (currentUser) {
+    await loadCustomerPrices();
+  }
+}
+
+/* =========================================
+   EVENT HANDLERS
+   ========================================= */
 
 function setupEvents() {
   $("login-open").addEventListener("click", () => openAuth("login"));
@@ -963,7 +1443,7 @@ function setupEvents() {
     renderServices();
   });
 
-$("category-filter").addEventListener("change", renderServices);
+  $("category-filter").addEventListener("change", renderServices);
 
   $("services-list").addEventListener("click", event => {
     const button = event.target.closest(".select-service");
@@ -981,7 +1461,7 @@ $("category-filter").addEventListener("change", renderServices);
     loadAdminWalletRequests
   );
 
-  $("admin-refresh-customers").addEventListener(
+ $("admin-refresh-customers").addEventListener(
     "click",
     loadAdminCustomers
   );
@@ -995,14 +1475,53 @@ $("category-filter").addEventListener("change", renderServices);
     const approve = event.target.closest(".approve-wallet");
     const reject = event.target.closest(".reject-wallet");
 
-    if (approve) {
-      approveWalletRequest(approve.dataset.id);
-    }
-
-    if (reject) {
-      rejectWalletRequest(reject.dataset.id);
-    }
+    if (approve) approveWalletRequest(approve.dataset.id);
+    if (reject) rejectWalletRequest(reject.dataset.id);
   });
+
+  /* PRICING EVENTS */
+
+  if ($("save-default-markup")) {
+    $("save-default-markup").addEventListener("click", saveDefaultMarkup);
+  }
+
+  if ($("save-category-markup")) {
+    $("save-category-markup").addEventListener("click", saveCategoryMarkup);
+  }
+
+  if ($("reset-category-markup")) {
+    $("reset-category-markup").addEventListener("click", resetCategoryMarkup);
+  }
+
+  if ($("pricing-category")) {
+    $("pricing-category").addEventListener("change", updateCategoryMarkupField);
+  }
+
+  if ($("pricing-service-search")) {
+    $("pricing-service-search").addEventListener("input", renderPricingServiceList);
+  }
+
+  if ($("pricing-service-list")) {
+    $("pricing-service-list").addEventListener("click", event => {
+      const button = event.target.closest(".pricing-select-service");
+
+      if (button) {
+        selectPricingService(button.dataset.id);
+      }
+    });
+  }
+
+if ($("save-individual-markup")) {
+    $("save-individual-markup").addEventListener("click", saveIndividualMarkup);
+  }
+
+  if ($("reset-individual-markup")) {
+    $("reset-individual-markup").addEventListener("click", resetIndividualMarkup);
+  }
+
+  if ($("admin-refresh-pricing")) {
+    $("admin-refresh-pricing").addEventListener("click", loadAdminPricing);
+  }
 
   client.auth.onAuthStateChange(() => {
     setTimeout(() => refreshSession(), 0);
