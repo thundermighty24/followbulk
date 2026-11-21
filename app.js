@@ -23,6 +23,8 @@ let defaultMarkup = 30;
 let categoryMarkups = {};
 let pricingViewData = {};
 
+let currentPricingPage = 1;
+
 /* BASIC HELPERS */
 
 function escapeHTML(value) {
@@ -803,7 +805,7 @@ async function rejectWalletRequest(requestId) {
         reviewed_by: currentUser.id,
         reviewed_at: new Date().toISOString()
       })
-     .eq("id", requestId)
+      .eq("id", requestId)
       .eq("status", "pending");
 
     if (error) throw error;
@@ -902,7 +904,7 @@ async function loadAdminOrders() {
       return;
     }
 
-   const userIds = [...new Set(orders.map(order => order.user_id))];
+    const userIds = [...new Set(orders.map(order => order.user_id))];
 
     const { data: profiles, error: profileError } = await client
       .from("profiles")
@@ -951,11 +953,10 @@ async function loadAdminOrders() {
     console.error("Admin orders error:", error);
   }
 }
+
 /* =========================================
    ADMIN PRICING MANAGEMENT
    ========================================= */
-
-/* Load default markup, category markup and service pricing */
 
 async function loadAdminPricing() {
   if (!currentUser || !isAdmin) return;
@@ -1000,35 +1001,62 @@ async function loadAdminPricing() {
       "admin-pricing-message",
       "Unable to load pricing settings: " + error.message
     );
-     console.error("Admin pricing load error:", error);
+
+    console.error("Admin pricing load error:", error);
   }
 }
 
-/* Populate the category selector using real service categories */
+/* POPULATE BOTH PRICING CATEGORY DROPDOWNS */
 
 function populatePricingCategories() {
-  const select = $("pricing-category");
-  if (!select) return;
-
-  const previous = select.value;
-
   const categories = [...new Set(
     services
       .map(service => service.category)
       .filter(Boolean)
   )].sort();
 
-  select.innerHTML = '<option value="">Choose a category</option>';
+  /* Category markup dropdown */
 
-  categories.forEach(category => {
-    const option = document.createElement("option");
-    option.value = category;
-    option.textContent = category;
-    select.appendChild(option);
-  });
+  const categorySelect = $("pricing-category");
 
-  if (categories.includes(previous)) {
-    select.value = previous;
+  if (categorySelect) {
+    const previous = categorySelect.value;
+
+    categorySelect.innerHTML =
+      '<option value="">Choose a category</option>';
+
+    categories.forEach(category => {
+      const option = document.createElement("option");
+      option.value = category;
+      option.textContent = category;
+      categorySelect.appendChild(option);
+    });
+
+    if (categories.includes(previous)) {
+      categorySelect.value = previous;
+    }
+  }
+
+  /* Individual service category filter */
+
+  const serviceCategory = $("pricing-service-category");
+
+  if (serviceCategory) {
+    const previous = serviceCategory.value;
+
+    serviceCategory.innerHTML =
+      '<option value="all">All categories</option>';
+
+    categories.forEach(category => {
+      const option = document.createElement("option");
+      option.value = category;
+      option.textContent = category;
+      serviceCategory.appendChild(option);
+    });
+
+    if (categories.includes(previous)) {
+      serviceCategory.value = previous;
+    }
   }
 
   updateCategoryMarkupField();
@@ -1050,7 +1078,7 @@ function updateCategoryMarkupField() {
     : "";
 }
 
-/* Save default markup */
+/* SAVE DEFAULT MARKUP */
 
 async function saveDefaultMarkup() {
   if (!isAdmin) return;
@@ -1103,9 +1131,9 @@ async function saveDefaultMarkup() {
   } finally {
     if (button) button.disabled = false;
   }
-   }
+}
 
-/* Save category markup */
+/* SAVE CATEGORY MARKUP */
 
 async function saveCategoryMarkup() {
   if (!isAdmin) return;
@@ -1151,7 +1179,8 @@ async function saveCategoryMarkup() {
       "Category markup saved successfully.",
       "success"
     );
-     showToast("Category markup updated.");
+
+    showToast("Category markup updated.");
 
     await refreshPricingAfterChange();
 
@@ -1167,7 +1196,7 @@ async function saveCategoryMarkup() {
   }
 }
 
-/* Reset category markup to default */
+/* RESET CATEGORY MARKUP */
 
 async function resetCategoryMarkup() {
   if (!isAdmin) return;
@@ -1200,7 +1229,8 @@ async function resetCategoryMarkup() {
       "Category markup removed. It will now use the default markup unless a service has its own markup.",
       "success"
     );
-     await refreshPricingAfterChange();
+
+    await refreshPricingAfterChange();
 
   } catch (error) {
     setMessage(
@@ -1212,7 +1242,7 @@ async function resetCategoryMarkup() {
   }
 }
 
-/* Render searchable individual service list */
+/* INDIVIDUAL SERVICE LIST WITH CATEGORY FILTER AND PAGINATION */
 
 function renderPricingServiceList() {
   const holder = $("pricing-service-list");
@@ -1222,6 +1252,9 @@ function renderPricingServiceList() {
     .trim()
     .toLowerCase();
 
+  const selectedCategory =
+    $("pricing-service-category")?.value || "all";
+
   const filtered = services.filter(service => {
     const searchable = [
       service.name,
@@ -1230,15 +1263,34 @@ function renderPricingServiceList() {
       service.id
     ].join(" ").toLowerCase();
 
-    return searchable.includes(search);
+    const matchesCategory =
+      selectedCategory === "all" ||
+      service.category === selectedCategory;
+
+    const matchesSearch = searchable.includes(search);
+
+    return matchesCategory && matchesSearch;
   });
 
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+
+  currentPricingPage = Math.max(
+    1,
+    Math.min(currentPricingPage, totalPages)
+  );
+
   if (!filtered.length) {
-    holder.innerHTML = '<div class="empty">No matching services found.</div>';
+    holder.innerHTML =
+      '<div class="empty">No matching services found.</div>';
     return;
   }
 
-  holder.innerHTML = filtered.map(service => `
+  const start = (currentPricingPage - 1) * pageSize;
+  const pageServices = filtered.slice(start, start + pageSize);
+  const end = Math.min(start + pageSize, filtered.length);
+
+  holder.innerHTML = pageServices.map(service => `
     <div class="admin-list-row">
       <div>
         <strong>${escapeHTML(service.name)}</strong>
@@ -1251,10 +1303,32 @@ function renderPricingServiceList() {
         Edit markup
       </button>
     </div>
-  `).join("");
+  `).join("") + `
+    <div class="pricing-pagination">
+      <small>
+        Showing ${start + 1}–${end} of ${filtered.length} services
+      </small>
+
+      <div class="admin-actions">
+        <button class="btn btn-small"
+          data-pricing-page="prev"
+          ${currentPricingPage <= 1 ? "disabled" : ""}>
+          Previous
+        </button>
+
+        <span>Page ${currentPricingPage} of ${totalPages}</span>
+
+        <button class="btn btn-small"
+          data-pricing-page="next"
+          ${currentPricingPage >= totalPages ? "disabled" : ""}>
+          Next
+        </button>
+      </div>
+    </div>
+  `;
 }
 
-/* Select one service for individual markup editing */
+/* SELECT SERVICE FOR INDIVIDUAL MARKUP */
 
 function selectPricingService(id) {
   selectedPricingService = services.find(
@@ -1307,7 +1381,7 @@ function selectPricingService(id) {
   );
 }
 
-/* Save individual service markup */
+/* SAVE INDIVIDUAL SERVICE MARKUP */
 
 async function saveIndividualMarkup() {
   if (!isAdmin || !selectedPricingService) {
@@ -1342,6 +1416,8 @@ async function saveIndividualMarkup() {
 
     selectedPricingService.markup_percent = value;
 
+    const selectedId = selectedPricingService.id;
+
     setMessage(
       "individual-pricing-message",
       "Individual service markup saved successfully.",
@@ -1352,20 +1428,21 @@ async function saveIndividualMarkup() {
 
     await refreshPricingAfterChange();
 
-    selectPricingService(selectedPricingService.id);
+    selectPricingService(selectedId);
 
   } catch (error) {
     setMessage(
       "individual-pricing-message",
       "Unable to save individual markup: " + error.message
     );
-     console.error("Individual markup save error:", error);
+
+    console.error("Individual markup save error:", error);
   } finally {
     if (button) button.disabled = false;
   }
 }
 
-/* Reset individual markup to category/default */
+/* RESET INDIVIDUAL MARKUP */
 
 async function resetIndividualMarkup() {
   if (!isAdmin || !selectedPricingService) {
@@ -1378,16 +1455,16 @@ async function resetIndividualMarkup() {
   setMessage("individual-pricing-message", "Resetting individual markup...");
 
   try {
+    const selectedId = selectedPricingService.id;
+
     const { error } = await client
       .from("services")
       .update({
         markup_percent: null
       })
-      .eq("id", selectedPricingService.id);
+      .eq("id", selectedId);
 
     if (error) throw error;
-
-    selectedPricingService.markup_percent = null;
 
     setMessage(
       "individual-pricing-message",
@@ -1397,7 +1474,7 @@ async function resetIndividualMarkup() {
 
     await refreshPricingAfterChange();
 
-    selectPricingService(selectedPricingService.id);
+    selectPricingService(selectedId);
 
   } catch (error) {
     setMessage(
@@ -1409,7 +1486,7 @@ async function resetIndividualMarkup() {
   }
 }
 
-/* Refresh customer prices and admin pricing after a change */
+/* REFRESH PRICING */
 
 async function refreshPricingAfterChange() {
   await loadAdminPricing();
@@ -1461,7 +1538,7 @@ function setupEvents() {
     loadAdminWalletRequests
   );
 
- $("admin-refresh-customers").addEventListener(
+  $("admin-refresh-customers").addEventListener(
     "click",
     loadAdminCustomers
   );
@@ -1497,12 +1574,44 @@ function setupEvents() {
     $("pricing-category").addEventListener("change", updateCategoryMarkupField);
   }
 
+  /* Individual service search */
+
   if ($("pricing-service-search")) {
-    $("pricing-service-search").addEventListener("input", renderPricingServiceList);
+    $("pricing-service-search").addEventListener("input", () => {
+      currentPricingPage = 1;
+      renderPricingServiceList();
+    });
   }
+
+  /* Individual service category filter */
+
+  if ($("pricing-service-category")) {
+    $("pricing-service-category").addEventListener("change", () => {
+      currentPricingPage = 1;
+      renderPricingServiceList();
+    });
+  }
+
+  /* Individual service list and pagination */
 
   if ($("pricing-service-list")) {
     $("pricing-service-list").addEventListener("click", event => {
+
+      const pageButton = event.target.closest("[data-pricing-page]");
+
+      if (pageButton) {
+        if (pageButton.disabled) return;
+
+        if (pageButton.dataset.pricingPage === "prev") {
+          currentPricingPage--;
+        } else {
+          currentPricingPage++;
+        }
+
+        renderPricingServiceList();
+        return;
+      }
+
       const button = event.target.closest(".pricing-select-service");
 
       if (button) {
@@ -1511,7 +1620,7 @@ function setupEvents() {
     });
   }
 
-if ($("save-individual-markup")) {
+  if ($("save-individual-markup")) {
     $("save-individual-markup").addEventListener("click", saveIndividualMarkup);
   }
 
