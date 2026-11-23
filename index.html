@@ -93,7 +93,7 @@
       <div>
         <div class="eyebrow">QUICK ORDER</div>
         <h2>Order details</h2>
-        <p>Select a service from the catalogue to preview its pricing and limits.</p>
+        <p>Select a service, add its target link and quantity, then submit securely.</p>
       </div>
     </div>
     <div class="order-preview">
@@ -104,7 +104,22 @@
         <div><span>Minimum quantity</span><strong id="selected-service-min">—</strong></div>
         <div><span>Maximum quantity</span><strong id="selected-service-max">—</strong></div>
       </div>
-      <p id="order-message" class="message">Order placement is not active yet. No payment or order will be submitted here.</p>
+
+      <form id="order-form" class="order-form">
+        <label for="order-target-url">Target URL
+          <input id="order-target-url" type="url" maxlength="2000" required disabled placeholder="https://www.instagram.com/...">
+        </label>
+        <label for="order-quantity">Quantity
+          <input id="order-quantity" type="number" min="1" step="1" required disabled placeholder="Select a service first">
+        </label>
+        <div class="order-total-row">
+          <span>Estimated order total</span>
+          <strong id="order-estimated-total">—</strong>
+        </div>
+        <p class="order-hint">The final charge is calculated securely by Followbulk using the current service price and your wallet balance.</p>
+        <button class="btn" id="place-order-button" type="submit" disabled>Place order</button>
+      </form>
+      <p id="order-message" class="message" role="status" aria-live="polite">Choose a service and log in to place an order.</p>
     </div>
   </section>
 
