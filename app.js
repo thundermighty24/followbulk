@@ -17,6 +17,7 @@ let isAdmin = false;
 let services = [];
 let selectedService = null;
 let selectedPricingService = null;
+let pendingOrderIdempotencyKey = null;
 let authMode = "login";
 
 let defaultMarkup = 30;
@@ -223,6 +224,7 @@ async function refreshSession() {
   $("logout").classList.toggle("hidden", !currentUser);
   $("admin-nav").classList.toggle("hidden", !isAdmin);
   $("admin-dashboard").classList.toggle("hidden", !isAdmin);
+  updateOrderFormAvailability();
 
   $("user-label").textContent = currentUser
     ? (currentProfile?.full_name || currentUser.email)
@@ -341,6 +343,23 @@ async function loadCustomerPrices() {
           : null
       };
     });
+
+    // Refresh the selected service object after login/pricing reload so its
+    // customer_rate is current even if it was selected before signing in.
+    if (selectedService) {
+      selectedService = services.find(
+        service => String(service.id) === String(selectedService.id)
+      ) || null;
+
+      if (selectedService) {
+        $("selected-service-rate").textContent =
+          Number.isFinite(Number(selectedService.customer_rate))
+            ? formatRupees(selectedService.customer_rate)
+            : "Login to view price";
+        updateOrderEstimate();
+        updateOrderFormAvailability();
+      }
+    }
 
     renderServices();
 
@@ -469,13 +488,215 @@ function selectService(id) {
   $("selected-service-min").textContent = selectedService.min_quantity;
   $("selected-service-max").textContent = selectedService.max_quantity;
 
-  $("order-message").textContent =
-    "Service selected. Order placement is not active yet.";
+  const min = Number(selectedService.min_quantity);
+  const max = Number(selectedService.max_quantity);
+  const quantityInput = $("order-quantity");
+
+  quantityInput.min = Number.isSafeInteger(min) && min > 0 ? String(min) : "1";
+  quantityInput.max = Number.isSafeInteger(max) && max >= min ? String(max) : "";
+  quantityInput.value = quantityInput.min;
+
+  setMessage(
+    "order-message",
+    currentUser
+      ? "Service selected. Enter your target URL and quantity."
+      : "Service selected. Please log in before placing an order."
+  );
+
+  updateOrderEstimate();
+  updateOrderFormAvailability();
 
   $("order-now").scrollIntoView({
     behavior: "smooth",
     block: "center"
   });
+}
+
+function updateOrderFormAvailability() {
+  const button = $("place-order-button");
+  const urlInput = $("order-target-url");
+  const quantityInput = $("order-quantity");
+
+  if (!button || !urlInput || !quantityInput) return;
+
+  const canOrder = Boolean(currentUser && selectedService);
+  button.disabled = !canOrder;
+  urlInput.disabled = !currentUser;
+  quantityInput.disabled = !canOrder;
+}
+
+function updateOrderEstimate() {
+  const estimate = $("order-estimated-total");
+  if (!estimate) return;
+
+  const rate = Number(selectedService?.customer_rate);
+  const quantity = Number($("order-quantity")?.value);
+
+  if (!selectedService || !Number.isFinite(rate) || rate <= 0 || !Number.isFinite(quantity) || quantity <= 0) {
+    estimate.textContent = "—";
+    return;
+  }
+
+  estimate.textContent = formatRupees(rate * quantity / 1000);
+}
+
+function createOrderIdempotencyKey() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+
+  return "fb-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+}
+
+async function submitOrder(event) {
+  event.preventDefault();
+
+  if (!currentUser) {
+    setMessage("order-message", "Please log in before placing an order.");
+    openAuth("login");
+    return;
+  }
+
+  if (!selectedService) {
+    setMessage("order-message", "Please select a service from the catalogue first.");
+    return;
+  }
+
+  const quantity = Number($("order-quantity").value);
+  const targetUrl = $("order-target-url").value.trim();
+  const min = Number(selectedService.min_quantity);
+  const max = Number(selectedService.max_quantity);
+  const customerRate = Number(selectedService.customer_rate);
+
+  if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity < min || quantity > max) {
+    setMessage("order-message", `Enter a whole-number quantity between ${min} and ${max}.`);
+    return;
+  }
+
+  if (!Number.isFinite(customerRate) || customerRate <= 0) {
+    setMessage("order-message", "The selling price is unavailable. Refresh the catalogue and try again.");
+    return;
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(targetUrl);
+  } catch (_) {
+    setMessage("order-message", "Enter a valid target URL, including https://");
+    return;
+  }
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol) || targetUrl.length > 2000) {
+    setMessage("order-message", "Enter a valid http or https target URL (maximum 2,000 characters).");
+    return;
+  }
+
+  const button = $("place-order-button");
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "Submitting order...";
+  setMessage("order-message", "Checking your login and submitting your order...");
+
+  // Keep the same key after an uncertain network response. A retry with this key
+  // cannot create or submit a second order.
+  if (!pendingOrderIdempotencyKey) {
+    pendingOrderIdempotencyKey = createOrderIdempotencyKey();
+  }
+
+  try {
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw sessionError;
+
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
+      pendingOrderIdempotencyKey = null;
+      setMessage("order-message", "Your login session has expired. Please log in again.");
+      openAuth("login");
+      return;
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/gcsmm-place-order`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "apikey": SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        service_id: Number(selectedService.id),
+        quantity,
+        target_url: targetUrl,
+        idempotency_key: pendingOrderIdempotencyKey
+      })
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (result.pending) {
+      setMessage(
+        "order-message",
+        `${result.message || "Your order is awaiting provider verification."} Order reference: ${result.order_id || "available in your order records"}. Do not submit a new order for this request.`
+      );
+      await Promise.all([loadWalletBalance(), isAdmin ? loadAdminOrders() : Promise.resolve()]);
+      return;
+    }
+
+    if (result.refunded) {
+      pendingOrderIdempotencyKey = null;
+      setMessage("order-message", `${result.message || "The provider rejected the order and your wallet was refunded."} Reference: ${result.order_id || "—"}`, "success");
+      await Promise.all([loadWalletBalance(), isAdmin ? loadAdminOrders() : Promise.resolve()]);
+      return;
+    }
+
+    if (response.ok && result.success) {
+      const existingOrder = result.order || {};
+
+      if (result.existing && !existingOrder.provider_order_id && existingOrder.status === "pending") {
+        setMessage(
+          "order-message",
+          `This request already exists and is still pending provider verification. It was not submitted twice. Order reference: ${existingOrder.id || "—"}. Please do not create another request for the same order.`
+        );
+      } else {
+        pendingOrderIdempotencyKey = null;
+        setMessage(
+          "order-message",
+          `${result.message || "Your order was successfully submitted."} Order reference: ${existingOrder.id || "—"}. Provider reference: ${existingOrder.provider_order_id || "pending"}.`,
+          "success"
+        );
+        $("order-target-url").value = "";
+        $("order-quantity").value = $("order-quantity").min || "1";
+        updateOrderEstimate();
+      }
+
+      await Promise.all([
+        loadWalletBalance(),
+        isAdmin ? Promise.all([loadAdminOrders(), loadAdminStats()]) : Promise.resolve()
+      ]);
+      return;
+    }
+
+    // A definite HTTP/application error means the server returned a response.
+    // Retain the key only for pending/uncertain cases, handled above.
+    pendingOrderIdempotencyKey = null;
+    setMessage("order-message", result.message || `Order could not be submitted (HTTP ${response.status}). Please review your details and try again.`);
+
+    if (response.status === 401) {
+      await refreshSession();
+      openAuth("login");
+    }
+
+    await Promise.all([loadWalletBalance(), isAdmin ? loadAdminOrders() : Promise.resolve()]);
+
+  } catch (error) {
+    console.error("Followbulk order submission error:", error);
+    setMessage(
+      "order-message",
+      "We could not confirm the server response. Do not create a new order. You can press the button again to safely retry this same request."
+    );
+  } finally {
+    button.disabled = !(currentUser && selectedService);
+    button.textContent = pendingOrderIdempotencyKey ? "Retry same request" : originalLabel;
+  }
 }
 
 /* CUSTOMER WALLET */
@@ -1361,6 +1582,9 @@ function setupEvents() {
   });
 
   $("category-filter").addEventListener("change", renderServices);
+
+  $("order-form").addEventListener("submit", submitOrder);
+  $("order-quantity").addEventListener("input", updateOrderEstimate);
 
   $("services-list").addEventListener("click", event => {
     const button = event.target.closest(".select-service");
