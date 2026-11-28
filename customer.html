@@ -6,20 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#17152f">
   <title>Followbulk — Customer Panel</title>
-  <meta name="description" content="Manage your social media services with Followbulk.">
+  <meta name="description" content="Explore services, place orders and manage your Followbulk wallet.">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="customer-portal">
+<body>
 <header class="topbar">
-  <a class="brand" href="index.html"><span class="brand-mark">F</span>Follow<span>bulk</span></a>
+  <a class="brand" href="#"><span class="brand-mark">F</span>Follow<span>bulk</span></a>
   <nav>
-    <a href="customer.html">Customer Panel</a>
-    <a href="admin.html">Admin Panel</a>
     <a href="#services">Services</a>
-    <a href="#dashboard">My Dashboard</a>
     <a href="#dashboard">Dashboard</a>
-    <a href="#admin-dashboard" id="admin-nav" class="hidden">Admin</a>
     <a href="#how">How it works</a>
   </nav>
   <div class="nav-actions">
@@ -167,198 +163,6 @@
     </div>
   </section>
 
-  <!-- ADMIN DASHBOARD -->
-  <section class="section hidden" id="admin-dashboard">
-    <div class="section-heading">
-      <div>
-        <div class="eyebrow">FOLLOWBULK CONTROL CENTRE</div>
-        <h2>Admin Dashboard</h2>
-        <p>Manage customers, wallet requests and orders.</p>
-      </div>
-      <span class="status">Administrator</span>
-    </div>
-
-    <div class="dash-grid admin-stats">
-      <article class="dash-card">
-        <div class="eyebrow">CUSTOMERS</div>
-        <h3 id="admin-customer-count">—</h3>
-        <p>Registered accounts</p>
-      </article>
-      <article class="dash-card">
-        <div class="eyebrow">ORDERS</div>
-        <h3 id="admin-order-count">—</h3>
-        <p>Total recorded orders</p>
-      </article>
-      <article class="dash-card">
-        <div class="eyebrow">PENDING TOP-UPS</div>
-        <h3 id="admin-pending-count">—</h3>
-        <p>Requests awaiting review</p>
-      </article>
-      <article class="dash-card">
-        <div class="eyebrow">SERVICES</div>
-        <h3 id="admin-service-count">—</h3>
-        <p>Active catalogue services</p>
-      </article>
-    </div>
-
-    <!-- PRICING MANAGEMENT -->
-    <article class="dash-card admin-panel" id="admin-pricing-panel">
-      <div class="section-heading">
-        <div>
-          <div class="eyebrow">REVENUE MANAGEMENT</div>
-          <h3>Pricing Management</h3>
-          <p>Manage default, category and individual service markups.</p>
-        </div>
-        <span class="status">INR Pricing</span>
-      </div>
-
-      <!-- DEFAULT MARKUP -->
-      <div class="pricing-settings">
-        <h4>Default markup</h4>
-        <p>Applied when a service has no category or individual override.</p>
-
-        <div class="pricing-input-row">
-          <label for="default-markup">Default markup (%)</label>
-          <input
-            id="default-markup"
-            type="number"
-            min="0"
-            max="10000"
-            step="0.01"
-            value="30"
-          >
-          <button class="btn btn-primary btn-small" type="button" id="save-default-markup">
-            Save default
-          </button>
-        </div>
-      </div>
-
-      <div class="pricing-divider"></div>
-
-      <!-- CATEGORY MARKUP -->
-      <div class="pricing-settings">
-        <h4>Category markup</h4>
-        <p>Set a markup for all services in a selected category.</p>
-
-        <label for="pricing-category">Select category</label>
-        <select id="pricing-category">
-          <option value="">Loading categories...</option>
-        </select>
-
-        <div class="pricing-input-row">
-          <label for="category-markup">Category markup (%)</label>
-          <input
-            id="category-markup"
-            type="number"
-            min="0"
-            max="10000"
-            step="0.01"
-            placeholder="Enter percentage"
-          >
-          <button class="btn btn-primary btn-small" type="button" id="save-category-markup">
-            Save category
-          </button>
-        </div>
-
-        <button class="btn btn-light btn-small" type="button" id="reset-category-markup">
-          Remove category override
-        </button>
-
-        <div id="category-pricing-message" class="message"></div>
-      </div>
-
-      <div class="pricing-divider"></div>
-
-      <!-- INDIVIDUAL SERVICE MARKUP -->
-      <div class="pricing-settings">
-        <h4>Individual service pricing</h4>
-        <p>Search any service and set its own markup.</p>
-<label for="pricing-service-category">Filter by category</label>
-<select id="pricing-service-category">
-  <option value="all">All categories</option>
-</select>
-        <label for="pricing-service-search">Search services</label>
-        <input
-          id="pricing-service-search"
-          type="search"
-          placeholder="Search service name or provider ID..."
-        >
-
-        <div id="pricing-service-list" class="empty">
-          Loading services...
-        </div>
-
-        <div id="individual-pricing-editor" class="hidden">
-          <h4 id="pricing-selected-service">Selected service</h4>
-
-          <p id="pricing-provider-rate"></p>
-          <p id="pricing-current-markup"></p>
-          <p id="pricing-customer-rate"></p>
-
-          <label for="individual-markup">Individual markup (%)</label>
-          <input
-            id="individual-markup"
-            type="number"
-            min="0"
-            max="10000"
-            step="0.01"
-            placeholder="Enter percentage"
-          >
-
-          <button class="btn btn-primary btn-small" type="button" id="save-individual-markup">
-            Save service markup
-          </button>
-
-          <button class="btn btn-light btn-small" type="button" id="reset-individual-markup">
-            Reset to category/default
-          </button>
-        </div>
-
-        <div id="individual-pricing-message" class="message"></div>
-      </div>
-
-      <div class="pricing-divider"></div>
-
-      <div class="section-heading">
-        <div>
-          <h4>Pricing overview</h4>
-          <p>Review your current selling prices and markups.</p>
-        </div>
-        <button class="btn btn-light btn-small" type="button" id="admin-refresh-pricing">
-          Refresh
-        </button>
-      </div>
-
-      <div id="admin-pricing-message" class="message"></div>
-    </article>
-    <!-- END PRICING MANAGEMENT -->
-
-    <article class="dash-card admin-panel">
-      <div class="section-heading">
-        <div><div class="eyebrow">PAYMENT REVIEW</div><h3>Wallet requests</h3></div>
-        <button class="btn btn-light btn-small" id="admin-refresh-wallet">Refresh</button>
-      </div>
-      <div id="admin-wallet-list" class="empty">Loading wallet requests...</div>
-    </article>
-
-    <article class="dash-card admin-panel">
-      <div class="section-heading">
-        <div><div class="eyebrow">CUSTOMER DIRECTORY</div><h3>Customers</h3></div>
-        <button class="btn btn-light btn-small" id="admin-refresh-customers">Refresh</button>
-      </div>
-      <div id="admin-customer-list" class="empty">Loading customers...</div>
-    </article>
-
-    <article class="dash-card admin-panel">
-      <div class="section-heading">
-        <div><div class="eyebrow">ORDER MONITORING</div><h3>Recent orders</h3></div>
-        <button class="btn btn-light btn-small" id="admin-refresh-orders">Refresh</button>
-      </div>
-      <div id="admin-order-list" class="empty">Loading orders...</div>
-    </article>
-
-    <p id="admin-message" class="message"></p>
-  </section>
 
   <section class="section how" id="how">
     <div class="eyebrow">HOW IT WORKS</div>

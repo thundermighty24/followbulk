@@ -110,9 +110,12 @@ function openAuth(mode) {
   $("auth-submit").textContent = mode === "signup" ? "Create account" : "Login";
   $("name-wrap").classList.toggle("hidden", mode !== "signup");
 
-  $("auth-switch").textContent = mode === "signup"
-    ? "Already registered? Login"
-    : "New here? Create an account";
+  const authSwitch = $("auth-switch");
+  if (authSwitch) {
+    authSwitch.textContent = mode === "signup"
+      ? "Already registered? Login"
+      : "New here? Create an account";
+  }
 
   $("auth-message").textContent = "";
   $("auth-dialog").showModal();
@@ -197,78 +200,44 @@ async function logout() {
 
 async function refreshSession() {
   const { data, error } = await client.auth.getSession();
-
   if (error) console.error(error);
-
   currentUser = data?.session?.user || null;
   currentProfile = null;
   isAdmin = false;
-
   if (currentUser) {
-    const { data: profile, error: profileError } = await client
-      .from("profiles")
-      .select("id,email,full_name,role")
-      .eq("id", currentUser.id)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error("Profile loading error:", profileError);
-    } else {
-      currentProfile = profile;
-      isAdmin = profile?.role === "admin";
-    }
+    const { data: profile, error: profileError } = await client.from("profiles")
+      .select("id,email,full_name,role").eq("id", currentUser.id).maybeSingle();
+    if (profileError) console.error("Profile loading error:", profileError);
+    else { currentProfile = profile; isAdmin = profile?.role === "admin"; }
   }
-
-  $("login-open").classList.toggle("hidden", !!currentUser);
-  $("signup-open").classList.toggle("hidden", !!currentUser);
-  $("logout").classList.toggle("hidden", !currentUser);
-  $("admin-nav").classList.toggle("hidden", !isAdmin);
-  $("admin-dashboard").classList.toggle("hidden", !isAdmin);
-  document.body.classList.toggle("admin-authorized", isAdmin);
-  const adminGate = $("admin-gate");
-  if (adminGate) adminGate.classList.toggle("hidden", isAdmin);
+  const setText = (id, value) => { const el = $(id); if (el) el.textContent = value; };
+  const toggle = (id, hidden) => { const el = $(id); if (el) el.classList.toggle("hidden", hidden); };
+  toggle("login-open", !!currentUser);
+  toggle("signup-open", !!currentUser);
+  toggle("logout", !currentUser);
+  toggle("admin-nav", !isAdmin);
+  toggle("admin-dashboard", !isAdmin);
+  setText("user-label", currentUser ? (currentProfile?.full_name || currentUser.email) : "");
+  setText("auth-status", currentUser ? (isAdmin ? "Signed in as administrator" : "Signed in as " + currentUser.email) : "Sign in to view your account");
+  setText("account-info", currentUser ? `Welcome, ${currentProfile?.full_name || currentUser.email}. Your account is active.` : "Your account activity will appear here after login.");
+  const amount = $("topup-amount"); if (amount) amount.disabled = !currentUser;
+  const utr = $("topup-utr"); if (utr) utr.disabled = !currentUser;
+  const topupForm = $("topup-form"); if (topupForm) { const submit = topupForm.querySelector("button"); if (submit) submit.disabled = !currentUser; }
   updateOrderFormAvailability();
-
-  $("user-label").textContent = currentUser
-    ? (currentProfile?.full_name || currentUser.email)
-    : "";
-
-  $("auth-status").textContent = currentUser
-    ? (isAdmin
-      ? "Signed in as administrator"
-      : "Signed in as " + currentUser.email)
-    : "Sign in to view your account";
-
-  $("account-info").textContent = currentUser
-    ? `Welcome, ${currentProfile?.full_name || currentUser.email}. Your account is active.`
-    : "Your account activity will appear here after login.";
-
-  $("topup-amount").disabled = !currentUser;
-  $("topup-utr").disabled = !currentUser;
-  $("topup-form").querySelector("button").disabled = !currentUser;
-
-  if (currentUser) {
-    await Promise.all([
-      loadWalletRequests(),
-      loadWalletBalance()
-    ]);
-
-    if (services.length) {
-      await loadCustomerPrices();
+  // Customer-only account data is loaded only on the customer page.
+  if ($("dashboard")) {
+    if (currentUser) {
+      await Promise.all([loadWalletRequests(), loadWalletBalance()]);
+      if (services.length) await loadCustomerPrices();
+    } else {
+      setText("wallet-requests", "Sign in to view requests.");
+      setText("customer-balance", "₹—");
+      setText("customer-balance-message", "Sign in to view your balance.");
+      services.forEach(service => { service.customer_rate = null; });
+      renderServices();
     }
-  } else {
-    $("wallet-requests").textContent = "Sign in to view requests.";
-    $("customer-balance").textContent = "₹—";
-    $("customer-balance-message").textContent = "Sign in to view your balance.";
-
-    services.forEach(service => {
-      service.customer_rate = null;
-    });
-
-    renderServices();
   }
-
-  if (isAdmin) {
+  if (isAdmin && $("admin-dashboard")) {
     await loadAdminDashboard();
     await loadAdminPricing();
   }
@@ -278,7 +247,7 @@ async function refreshSession() {
 
 async function loadServices() {
   const list = $("services-list");
-  list.innerHTML = '<div class="empty">Loading services...</div>';
+  if (list) list.innerHTML = '<div class="empty">Loading services...</div>';
 
   try {
     const { data, error } = await client
@@ -307,8 +276,8 @@ async function loadServices() {
     }
 
   } catch (error) {
-    list.innerHTML = '<div class="empty">Unable to load services. Please refresh and try again.</div>';
-    $("service-count").textContent = "Service catalogue unavailable";
+    if (list) list.innerHTML = '<div class="empty">Unable to load services. Please refresh and try again.</div>';
+    if ($("service-count")) $("service-count").textContent = "Service catalogue unavailable";
     console.error("Service loading error:", error);
   }
 }
@@ -381,6 +350,7 @@ async function loadCustomerPrices() {
 /* SERVICE CATEGORY FILTERS */
 
 function updateCategoryOptions() {
+  if (!$("platform-filter") || !$("category-filter")) return;
   const platform = $("platform-filter").value;
 
   const categories = [...new Set(
@@ -409,6 +379,7 @@ function updateCategoryOptions() {
 }
 
 function renderServices() {
+  if (!$("services-list") || !$("service-search") || !$("platform-filter") || !$("category-filter")) return;
   const search = $("service-search").value.trim().toLowerCase();
   const platform = $("platform-filter").value;
   const category = $("category-filter").value;
@@ -1565,100 +1536,41 @@ async function refreshPricingAfterChange() {
    ========================================= */
 
 function setupEvents() {
-  $("login-open").addEventListener("click", () => openAuth("login"));
-  $("signup-open").addEventListener("click", () => openAuth("signup"));
-  $("hero-signup").addEventListener("click", () => openAuth("signup"));
-
-  $("auth-switch").addEventListener("click", () => {
-    openAuth(authMode === "login" ? "signup" : "login");
-  });
-
-  $("auth-form").addEventListener("submit", handleAuth);
-  $("logout").addEventListener("click", logout);
-
-  $("service-search").addEventListener("input", renderServices);
-
-  $("platform-filter").addEventListener("change", () => {
-    $("category-filter").value = "all";
-    updateCategoryOptions();
-    renderServices();
-  });
-
-  $("category-filter").addEventListener("change", renderServices);
-
-  $("order-form").addEventListener("submit", submitOrder);
-  $("order-quantity").addEventListener("input", updateOrderEstimate);
-
-  $("services-list").addEventListener("click", event => {
-    const button = event.target.closest(".select-service");
-    if (button) selectService(button.dataset.id);
-  });
-
-  $("refresh-services").addEventListener("click", loadServices);
-  $("topup-form").addEventListener("submit", submitTopup);
-
-  $("admin-refresh-wallet").addEventListener("click", loadAdminWalletRequests);
-  $("admin-refresh-customers").addEventListener("click", loadAdminCustomers);
-  $("admin-refresh-orders").addEventListener("click", loadAdminOrders);
-
-  $("admin-wallet-list").addEventListener("click", event => {
+  const on = (id, event, handler) => { const el = $(id); if (el) el.addEventListener(event, handler); };
+  on("login-open", "click", () => openAuth("login"));
+  on("signup-open", "click", () => openAuth("signup"));
+  on("hero-signup", "click", () => openAuth("signup"));
+  on("auth-switch", "click", () => openAuth(authMode === "login" ? "signup" : "login"));
+  on("auth-form", "submit", handleAuth);
+  on("logout", "click", logout);
+  on("service-search", "input", renderServices);
+  on("platform-filter", "change", () => { if ($("category-filter")) $("category-filter").value = "all"; updateCategoryOptions(); renderServices(); });
+  on("category-filter", "change", renderServices);
+  on("order-form", "submit", submitOrder);
+  on("order-quantity", "input", updateOrderEstimate);
+  on("services-list", "click", event => { const button = event.target.closest(".select-service"); if (button) selectService(button.dataset.id); });
+  on("refresh-services", "click", loadServices);
+  on("topup-form", "submit", submitTopup);
+  on("admin-refresh-wallet", "click", loadAdminWalletRequests);
+  on("admin-refresh-customers", "click", loadAdminCustomers);
+  on("admin-refresh-orders", "click", loadAdminOrders);
+  on("admin-wallet-list", "click", event => {
     const approve = event.target.closest(".approve-wallet");
     const reject = event.target.closest(".reject-wallet");
-
     if (approve) approveWalletRequest(approve.dataset.id);
     if (reject) rejectWalletRequest(reject.dataset.id);
   });
-
-  /* PRICING EVENTS */
-
-  if ($("save-default-markup")) {
-    $("save-default-markup").addEventListener("click", saveDefaultMarkup);
-  }
-
-  if ($("save-category-markup")) {
-    $("save-category-markup").addEventListener("click", saveCategoryMarkup);
-  }
-
-  if ($("reset-category-markup")) {
-    $("reset-category-markup").addEventListener("click", resetCategoryMarkup);
-  }
-
-  if ($("pricing-category")) {
-    $("pricing-category").addEventListener("change", updateCategoryMarkupField);
-  }
-
-  if ($("pricing-service-search")) {
-    $("pricing-service-search").addEventListener("input", renderPricingServiceList);
-  }
-
-  /* NEW CATEGORY FILTER EVENT */
-
-  if ($("pricing-service-category")) {
-    $("pricing-service-category").addEventListener("change", renderPricingServiceList);
-  }
-
-  if ($("pricing-service-list")) {
-    $("pricing-service-list").addEventListener("click", event => {
-      const button = event.target.closest(".pricing-select-service");
-      if (button) selectPricingService(button.dataset.id);
-    });
-  }
-
-  if ($("save-individual-markup")) {
-    $("save-individual-markup").addEventListener("click", saveIndividualMarkup);
-  }
-
-  if ($("reset-individual-markup")) {
-    $("reset-individual-markup").addEventListener("click", resetIndividualMarkup);
-  }
-
-  if ($("admin-refresh-pricing")) {
-    $("admin-refresh-pricing").addEventListener("click", loadAdminPricing);
-  }
-
-  client.auth.onAuthStateChange(() => {
-    setTimeout(() => refreshSession(), 0);
-  });
+  on("save-default-markup", "click", saveDefaultMarkup);
+  on("save-category-markup", "click", saveCategoryMarkup);
+  on("reset-category-markup", "click", resetCategoryMarkup);
+  on("pricing-category", "change", updateCategoryMarkupField);
+  on("pricing-service-search", "input", renderPricingServiceList);
+  on("pricing-service-category", "change", renderPricingServiceList);
+  on("pricing-service-list", "click", event => { const button = event.target.closest(".pricing-select-service"); if (button) selectPricingService(button.dataset.id); });
+  on("save-individual-markup", "click", saveIndividualMarkup);
+  on("reset-individual-markup", "click", resetIndividualMarkup);
+  on("admin-refresh-pricing", "click", loadAdminPricing);
+  client.auth.onAuthStateChange(() => { setTimeout(() => refreshSession(), 0); });
 }
 
 /* START APPLICATION */

@@ -473,14 +473,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #a99aff; outline-offs
 }
 
 
-/* SEPARATE FOLLOWBULK PORTAL LAYOUTS */
-body.customer-portal #admin-dashboard,
-body.customer-portal #admin-nav { display: none !important; }
-body.admin-portal main > section:not(#admin-dashboard):not(#admin-gate) { display: none !important; }
-body.admin-portal main > #admin-dashboard { display: block; }
-body.admin-portal main > #admin-dashboard.hidden { display: none !important; }
-body.admin-portal main > #admin-gate { display: block; }
-body.admin-portal main > #admin-gate.hidden { display: none !important; }
-body.admin-portal header nav a:not([href="admin.html"]) { display: none; }
-body.admin-portal .brand { pointer-events: auto; }
-.admin-gate { max-width: 720px; margin: 48px auto; padding: 28px; border: 1px solid var(--line, #ddd); border-radius: 18px; background: var(--card, #fff); }
+/* Separate admin panel layout */
+.admin-page main { min-height: 70vh; }
+.admin-page .admin-welcome { padding-top: 42px; padding-bottom: 18px; }
+.admin-page .admin-welcome h1 { margin: 8px 0; font-size: clamp(2rem, 5vw, 3rem); }
+.admin-page #admin-dashboard { padding-top: 12px; }
