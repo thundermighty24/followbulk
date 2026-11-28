@@ -537,3 +537,22 @@ body { background: #f6f7fb; }
   .stat-card { padding: 12px; }
   .nav-actions #user-label { display: none; }
 }
+
+/* New Order service picker */
+.order-preview select#order-service-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 18px;
+  padding: 13px 42px 13px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #faf9ff;
+  color: var(--ink);
+  font: 14px 'DM Sans', sans-serif;
+}
+.order-preview select#order-service-select:focus {
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px #7050ed18;
+}

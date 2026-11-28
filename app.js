@@ -347,6 +347,25 @@ async function refreshSession() {
 
 /* SERVICES */
 
+function populateOrderServiceSelect() {
+  const select = $("order-service-select");
+  if (!select) return;
+  const previous = selectedService ? String(selectedService.id) : select.value;
+  const options = services.map(service => {
+    const rate = Number(service.customer_rate);
+    const price = Number.isFinite(rate) && rate > 0
+      ? ` — ${formatRupees(rate)} / 1,000`
+      : (currentUser ? " — Price unavailable" : " — Login to view price");
+    return `<option value="${escapeHTML(service.id)}">${escapeHTML(service.name)}${escapeHTML(price)}</option>`;
+  }).join("");
+  select.innerHTML = `<option value="">Select a service (${services.length} available)</option>${options}`;
+  if (previous && services.some(service => String(service.id) === previous)) {
+    select.value = previous;
+  } else {
+    select.value = "";
+  }
+}
+
 async function loadServices() {
   const list = $("services-list");
   if (list) list.innerHTML = '<div class="empty">Loading services...</div>';
@@ -373,6 +392,7 @@ async function loadServices() {
       renderServices();
     }
 
+    populateOrderServiceSelect();
     if (isAdmin) {
       await loadAdminPricing();
     }
@@ -436,6 +456,7 @@ async function loadCustomerPrices() {
     }
 
     renderServices();
+    populateOrderServiceSelect();
 
   } catch (error) {
     console.error("Customer pricing could not be loaded:", error);
@@ -446,6 +467,7 @@ async function loadCustomerPrices() {
     }));
 
     renderServices();
+    populateOrderServiceSelect();
   }
 }
 
@@ -555,6 +577,7 @@ function selectService(id) {
   if (!selectedService) return;
 
   $("selected-service-name").value = selectedService.name;
+  if ($("order-service-select")) $("order-service-select").value = String(selectedService.id);
 
   $("selected-service-rate").textContent =
     Number.isFinite(Number(selectedService.customer_rate))
@@ -1650,6 +1673,20 @@ function setupEvents() {
   on("platform-filter", "change", () => { if ($("category-filter")) $("category-filter").value = "all"; updateCategoryOptions(); renderServices(); });
   on("category-filter", "change", renderServices);
   on("order-form", "submit", submitOrder);
+  on("order-service-select", "change", event => {
+    if (!event.target.value) {
+      selectedService = null;
+      $("selected-service-name").value = "";
+      $("selected-service-rate").textContent = "—";
+      $("selected-service-min").textContent = "—";
+      $("selected-service-max").textContent = "—";
+      updateOrderEstimate();
+      updateOrderFormAvailability();
+      setMessage("order-message", "Choose a service to continue.");
+      return;
+    }
+    selectService(event.target.value);
+  });
   on("order-quantity", "input", updateOrderEstimate);
   on("services-list", "click", event => { const button = event.target.closest(".select-service"); if (button) selectService(button.dataset.id); });
   on("refresh-services", "click", loadServices);

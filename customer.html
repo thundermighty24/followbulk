@@ -88,7 +88,7 @@
     <div id="services-list" class="service-list">
       <div class="empty">Loading services...</div>
     </div>
-    <p class="catalogue-note">Choose a service to view its pricing and limits. Order placement will be enabled after secure checkout is connected.</p>
+    <p class="catalogue-note">Browse the catalogue or choose any active service directly from the New Order dropdown.</p>
   </section>
 
   <section class="section order-section customer-view" id="order-now">
@@ -100,8 +100,11 @@
       </div>
     </div>
     <div class="order-preview">
-      <label for="selected-service-name">Selected service</label>
-      <input id="selected-service-name" type="text" readonly placeholder="Choose a service above">
+      <label for="order-service-select">Choose a service</label>
+      <select id="order-service-select" class="order-service-select" aria-label="Choose a service">
+        <option value="">Loading available services...</option>
+      </select>
+      <input id="selected-service-name" type="hidden" value="">
       <div class="order-preview-grid">
         <div><span>Price / 1,000</span><strong id="selected-service-rate">—</strong></div>
         <div><span>Minimum quantity</span><strong id="selected-service-min">—</strong></div>
