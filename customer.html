@@ -10,13 +10,17 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<body class="customer-page">
 <header class="topbar">
   <a class="brand" href="#"><span class="brand-mark">F</span>Follow<span>bulk</span></a>
-  <nav>
-    <a href="#services">Services</a>
-    <a href="#dashboard">Dashboard</a>
-    <a href="#how">How it works</a>
+  <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false">☰</button>
+  <nav id="main-nav" class="menu-panel">
+    <a href="#dashboard" data-view="dashboard">Dashboard</a>
+    <a href="#services" data-view="services">Services</a>
+    <a href="#order-now" data-view="order">New order</a>
+    <a href="#dashboard" data-view="wallet">Add funds</a>
+    <a href="#how" data-view="how">How it works</a>
+    <a href="#support" data-view="support">Help & support</a>
   </nav>
   <div class="nav-actions">
     <span id="user-label"></span>
@@ -33,7 +37,7 @@
       <h1>Your social growth.<br><span>One simple place.</span></h1>
       <p>Explore social media services, manage your account and keep track of your requests with Followbulk.</p>
       <div class="hero-actions">
-        <a class="btn" href="#services">Explore services</a>
+        <a class="btn" href="#services" data-view="services">Explore services</a>
         <button class="btn btn-light" id="hero-signup">Get started</button>
       </div>
       <div class="trust">
@@ -54,7 +58,7 @@
     </div>
   </section>
 
-  <section class="section" id="services">
+  <section class="section customer-view" id="services">
     <div class="section-heading">
       <div>
         <div class="eyebrow">SERVICE CATALOGUE</div>
@@ -87,7 +91,7 @@
     <p class="catalogue-note">Choose a service to view its pricing and limits. Order placement will be enabled after secure checkout is connected.</p>
   </section>
 
-  <section class="section order-section" id="order-now">
+  <section class="section order-section customer-view" id="order-now">
     <div class="section-heading">
       <div>
         <div class="eyebrow">QUICK ORDER</div>
@@ -122,7 +126,7 @@
     </div>
   </section>
 
-  <section class="section dashboard" id="dashboard">
+  <section class="section dashboard customer-view" id="dashboard">
     <div class="section-heading">
       <div>
         <div class="eyebrow">CUSTOMER AREA</div>
@@ -131,6 +135,19 @@
       </div>
       <span id="auth-status" class="status">Sign in to view your account</span>
     </div>
+    <div class="customer-stats-grid">
+      <article class="stat-card stat-welcome"><span>WELCOME BACK</span><strong id="customer-name">Your account</strong><small id="customer-email">Sign in to see your account details</small></article>
+      <article class="stat-card"><span>YOUR ORDERS</span><strong id="customer-order-count">—</strong><small>Total orders placed</small></article>
+      <article class="stat-card"><span>COMPLETED</span><strong id="customer-completed-count">—</strong><small>Successfully completed</small></article>
+      <article class="stat-card"><span>TOTAL SPENT</span><strong id="customer-total-spend">₹—</strong><small>Non-refunded order charges</small></article>
+      <article class="stat-card"><span>FOLLOWBULK ORDERS</span><strong id="customer-global-orders">—</strong><small>Total orders received</small></article>
+      <article class="stat-card"><span>PENDING TOP-UPS</span><strong id="customer-pending-topups">₹—</strong><small>Awaiting manual review</small></article>
+    </div>
+    <div class="quick-actions">
+      <button class="btn" type="button" data-view="services">Browse services</button>
+      <button class="btn btn-light" type="button" data-view="wallet">Add funds</button>
+      <button class="btn btn-light" type="button" data-view="order">New order</button>
+    </div>
     <div class="dash-grid">
       <article class="dash-card">
         <div class="eyebrow">ACCOUNT</div>
@@ -138,7 +155,7 @@
         <p>Sign in to manage your account and view your recent payment requests.</p>
         <div class="account-note" id="account-info">Your account activity will appear here after login.</div>
       </article>
-      <article class="dash-card">
+      <article class="dash-card" id="wallet-panel">
         <div class="eyebrow">WALLET</div>
         <h3>UPI wallet top-up</h3>
         <p>Submit your payment reference for manual verification. Funds are not added automatically.</p>
@@ -161,10 +178,14 @@
         <div id="customer-balance-message" class="account-note">Sign in to view your balance.</div>
       </article>
     </div>
+    <article class="dash-card customer-orders-card">
+      <div class="section-heading"><div><div class="eyebrow">ORDER ACTIVITY</div><h3>Recent orders</h3><p>Your latest order updates will appear here.</p></div><button class="btn btn-light btn-small" type="button" id="refresh-customer-orders">Refresh</button></div>
+      <div id="customer-orders" class="empty">Sign in to view your orders.</div>
+    </article>
   </section>
 
 
-  <section class="section how" id="how">
+  <section class="section how customer-view" id="how">
     <div class="eyebrow">HOW IT WORKS</div>
     <h2>Simple steps. Clear updates.</h2>
     <div class="steps">
@@ -172,6 +193,12 @@
       <article><b>02</b><h3>Explore services</h3><p>Search, filter and review available services and their pricing.</p></article>
       <article><b>03</b><h3>Track requests</h3><p>Check your account activity and request updates.</p></article>
     </div>
+  </section>
+  <section class="section support-section customer-view" id="support">
+    <div class="eyebrow">WE ARE HERE TO HELP</div>
+    <h2>Need help with an order?</h2>
+    <p>Keep your Followbulk order ID, service name and target link ready when asking for support. Never share your account password or payment OTP.</p>
+    <div class="support-note">For wallet requests, allow time for manual UPI reference verification. A submitted request is not a confirmed payment until it is approved.</div>
   </section>
 </main>
 

@@ -11,7 +11,8 @@
 <body>
 <header class="topbar">
   <a class="brand" href="index.html"><span class="brand-mark">F</span>Follow<span>bulk</span></a>
-  <nav><a href="customer.html">Customer Panel</a></nav>
+  <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false">☰</button>
+  <nav id="main-nav" class="menu-panel"><a href="customer.html">Customer Panel</a><a href="admin.html">Admin Login</a></nav>
 </header>
 <main>
   <section class="hero">
@@ -27,5 +28,13 @@
   <section class="section"><div class="section-heading"><div><div class="eyebrow">ACCOUNT ACCESS</div><h2>Choose your panel</h2><p>Customers and administrators use separate sign-in pages.</p></div></div><div class="dash-grid"><article class="dash-card"><div class="eyebrow">CUSTOMERS</div><h3>Customer Panel</h3><p>Browse services, submit orders when enabled, request wallet top-ups and view your account.</p><a class="btn" href="customer.html">Open Customer Panel</a></article><article class="dash-card"><div class="eyebrow">STAFF ONLY</div><h3>Admin Panel</h3><p>Manage pricing, review wallet requests and monitor customers and orders.</p><a class="btn btn-light" href="admin.html">Open Admin Login</a></article></div></section>
 </main>
 <footer><a class="brand" href="index.html"><span class="brand-mark">F</span>Follow<span>bulk</span></a><small>© 2026 Followbulk. Use services responsibly and follow each platform's terms.</small></footer>
+<script>
+  const menuButton = document.getElementById('menu-toggle');
+  const menuPanel = document.getElementById('main-nav');
+  if (menuButton && menuPanel) menuButton.addEventListener('click', () => {
+    const open = menuPanel.classList.toggle('menu-open');
+    menuButton.setAttribute('aria-expanded', String(open));
+  });
+</script>
 </body>
 </html>

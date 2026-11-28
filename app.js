@@ -101,6 +101,95 @@ function detectCategory(service) {
   return service.category || "Other Services";
 }
 
+/* CUSTOMER NAVIGATION AND OVERVIEW */
+function showCustomerView(view, scroll = true) {
+  if (!$('services') || !$('dashboard')) return;
+  const sections = {
+    dashboard: $('dashboard'),
+    services: $('services'),
+    order: $('order-now'),
+    how: $('how'),
+    support: $('support')
+  };
+  Object.entries(sections).forEach(([key, element]) => {
+    if (element) element.classList.toggle('view-active', key === view);
+  });
+  const hero = document.querySelector('.customer-page .hero');
+  if (hero) hero.classList.toggle('hidden', Boolean(currentUser));
+  const target = sections[view];
+  if (view === 'wallet') {
+    sections.dashboard?.classList.add('view-active');
+    if (scroll) $('wallet-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else if (scroll && target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  $('main-nav')?.classList.remove('menu-open');
+  $('menu-toggle')?.setAttribute('aria-expanded', 'false');
+}
+
+async function loadCustomerDashboardStats() {
+  if (!currentUser || !$('customer-order-count')) return;
+  const name = currentProfile?.full_name || currentUser.email || 'Customer';
+  $('customer-name').textContent = name;
+  $('customer-email').textContent = currentUser.email || '';
+  $('customer-order-count').textContent = '…';
+  $('customer-completed-count').textContent = '…';
+  $('customer-total-spend').textContent = '…';
+  $('customer-global-orders').textContent = '…';
+  $('customer-pending-topups').textContent = '…';
+
+  try {
+    const { data, error } = await client.rpc('followbulk_customer_dashboard_stats');
+    if (error) throw error;
+    const stats = data || {};
+    $('customer-order-count').textContent = Number(stats.total_orders || 0).toLocaleString('en-IN');
+    $('customer-completed-count').textContent = Number(stats.completed_orders || 0).toLocaleString('en-IN');
+    $('customer-total-spend').textContent = formatRupees(stats.total_spend || 0);
+    $('customer-global-orders').textContent = Number(stats.platform_orders || 0).toLocaleString('en-IN');
+  } catch (error) {
+    $('customer-order-count').textContent = '—';
+    $('customer-completed-count').textContent = '—';
+    $('customer-total-spend').textContent = '—';
+    $('customer-global-orders').textContent = '—';
+    console.error('Customer dashboard statistics error:', error);
+  }
+
+  try {
+    const { data: rows, error } = await client.from('orders')
+      .select('id,charge,status,created_at,service_name,quantity')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (error) throw error;
+    const holder = $('customer-orders');
+    if (holder) {
+      if (!rows?.length) holder.textContent = 'No orders yet. Your order activity will appear here.';
+      else holder.innerHTML = rows.map(order => `
+        <div class="request-row customer-order-row">
+          <div><strong>${escapeHTML(order.service_name || 'Service order')}</strong>
+          <small>Quantity: ${escapeHTML(order.quantity ?? '—')} · ${formatDate(order.created_at)}</small>
+          <small>Charge: ${formatRupees(order.charge)}</small></div>
+          <span class="request-status ${escapeHTML(order.status || 'pending')}">${escapeHTML(order.status || 'pending')}</span>
+        </div>`).join('');
+    }
+  } catch (error) {
+    const holder = $('customer-orders');
+    if (holder) holder.textContent = 'Unable to load your order history right now.';
+    console.error('Customer order history error:', error);
+  }
+
+  try {
+    const { data, error } = await client.from('wallet_requests')
+      .select('amount').eq('user_id', currentUser.id).eq('status', 'pending');
+    if (error) throw error;
+    const pendingAmount = (data || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    $('customer-pending-topups').textContent = formatRupees(pendingAmount);
+  } catch (error) {
+    $('customer-pending-topups').textContent = '—';
+    console.error('Pending top-up summary error:', error);
+  }
+}
+
 /* AUTHENTICATION */
 
 function openAuth(mode) {
@@ -226,13 +315,26 @@ async function refreshSession() {
   updateOrderFormAvailability();
   // Customer-only account data is loaded only on the customer page.
   if ($("dashboard")) {
+    const hero = document.querySelector('.customer-page .hero');
+    if (hero) hero.classList.toggle('hidden', !!currentUser);
     if (currentUser) {
-      await Promise.all([loadWalletRequests(), loadWalletBalance()]);
+      showCustomerView('dashboard', false);
+      await Promise.all([loadWalletRequests(), loadWalletBalance(), loadCustomerDashboardStats()]);
       if (services.length) await loadCustomerPrices();
     } else {
       setText("wallet-requests", "Sign in to view requests.");
       setText("customer-balance", "₹—");
       setText("customer-balance-message", "Sign in to view your balance.");
+      setText("customer-name", "Your account");
+      setText("customer-email", "Sign in to see your account details");
+      setText("customer-order-count", "—");
+      setText("customer-completed-count", "—");
+      setText("customer-total-spend", "₹—");
+      setText("customer-global-orders", "—");
+      setText("customer-pending-topups", "₹—");
+      setText("customer-orders", "Sign in to view your orders.");
+      document.querySelectorAll('.customer-page .customer-view').forEach(section => section.classList.remove('view-active'));
+      const hero = document.querySelector('.customer-page .hero'); if (hero) hero.classList.remove('hidden');
       services.forEach(service => { service.customer_rate = null; });
       renderServices();
     }
@@ -479,6 +581,7 @@ function selectService(id) {
 
   updateOrderEstimate();
   updateOrderFormAvailability();
+  showCustomerView('order', false);
 
   $("order-now").scrollIntoView({
     behavior: "smooth",
@@ -611,14 +714,14 @@ async function submitOrder(event) {
         "order-message",
         `${result.message || "Your order is awaiting provider verification."} Order reference: ${result.order_id || "available in your order records"}. Do not submit a new order for this request.`
       );
-      await Promise.all([loadWalletBalance(), isAdmin ? loadAdminOrders() : Promise.resolve()]);
+      await Promise.all([loadWalletBalance(), isAdmin ? loadAdminOrders() : loadCustomerDashboardStats()]);
       return;
     }
 
     if (result.refunded) {
       pendingOrderIdempotencyKey = null;
       setMessage("order-message", `${result.message || "The provider rejected the order and your wallet was refunded."} Reference: ${result.order_id || "—"}`, "success");
-      await Promise.all([loadWalletBalance(), isAdmin ? loadAdminOrders() : Promise.resolve()]);
+      await Promise.all([loadWalletBalance(), isAdmin ? loadAdminOrders() : loadCustomerDashboardStats()]);
       return;
     }
 
@@ -644,7 +747,7 @@ async function submitOrder(event) {
 
       await Promise.all([
         loadWalletBalance(),
-        isAdmin ? Promise.all([loadAdminOrders(), loadAdminStats()]) : Promise.resolve()
+        isAdmin ? Promise.all([loadAdminOrders(), loadAdminStats()]) : loadCustomerDashboardStats()
       ]);
       return;
     }
@@ -659,7 +762,7 @@ async function submitOrder(event) {
       openAuth("login");
     }
 
-    await Promise.all([loadWalletBalance(), isAdmin ? loadAdminOrders() : Promise.resolve()]);
+    await Promise.all([loadWalletBalance(), isAdmin ? loadAdminOrders() : loadCustomerDashboardStats()]);
 
   } catch (error) {
     console.error("Followbulk order submission error:", error);
@@ -715,7 +818,7 @@ async function submitTopup(event) {
     setMessage("topup-message", "Request submitted for manual verification.", "success");
 
     $("topup-form").reset();
-    await loadWalletRequests();
+    await Promise.all([loadWalletRequests(), loadCustomerDashboardStats()]);
 
   } catch (error) {
     setMessage("topup-message", error.message || "Unable to submit request.");
@@ -1550,6 +1653,19 @@ function setupEvents() {
   on("order-quantity", "input", updateOrderEstimate);
   on("services-list", "click", event => { const button = event.target.closest(".select-service"); if (button) selectService(button.dataset.id); });
   on("refresh-services", "click", loadServices);
+  on("refresh-customer-orders", "click", loadCustomerDashboardStats);
+  on("menu-toggle", "click", () => {
+    const menu = $("main-nav");
+    if (!menu) return;
+    const open = menu.classList.toggle("menu-open");
+    $("menu-toggle").setAttribute("aria-expanded", String(open));
+  });
+  document.addEventListener("click", event => {
+    const link = event.target.closest("[data-view]");
+    if (!link || !document.body.classList.contains('customer-page')) return;
+    event.preventDefault();
+    showCustomerView(link.dataset.view);
+  });
   on("topup-form", "submit", submitTopup);
   on("admin-refresh-wallet", "click", loadAdminWalletRequests);
   on("admin-refresh-customers", "click", loadAdminCustomers);

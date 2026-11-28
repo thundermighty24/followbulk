@@ -478,3 +478,62 @@ button:focus-visible, a:focus-visible { outline: 3px solid #a99aff; outline-offs
 .admin-page .admin-welcome { padding-top: 42px; padding-bottom: 18px; }
 .admin-page .admin-welcome h1 { margin: 8px 0; font-size: clamp(2rem, 5vw, 3rem); }
 .admin-page #admin-dashboard { padding-top: 12px; }
+
+/* FOLLOWBULK PREMIUM MOBILE-FIRST REFRESH */
+:root { --ink: #11172f; --muted: #70788f; --purple: #6546e8; --purple-dark: #4d32c5; --line: #e7eaf2; --bg: #f6f7fb; }
+body { background: #f6f7fb; }
+.topbar { min-height: 72px; box-shadow: 0 5px 24px rgba(23,29,61,.045); }
+.brand-mark { background: linear-gradient(145deg,#7658f2,#4f37c9); box-shadow: 0 7px 16px #6546e833; }
+.menu-toggle { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); font-size: 20px; cursor: pointer; order: 3; }
+.menu-panel { display: none !important; position: absolute; right: max(calc((100% - 1160px) / 2), 18px); top: 64px; min-width: 210px; padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 15px; box-shadow: 0 18px 50px rgba(25,28,58,.14); flex-direction: column; gap: 3px !important; z-index: 20; }
+.menu-panel.menu-open { display: flex !important; }
+.menu-panel a { display: block; padding: 12px 13px; border-radius: 9px; color: #343b55 !important; font-size: 13px !important; text-decoration: none; }
+.menu-panel a:hover { background: #f3f0ff; color: var(--purple) !important; }
+.nav-actions { margin-left: auto; }
+.hero { padding-top: 66px; }
+.hero-panel { box-shadow: 0 24px 70px rgba(75,58,155,.09); }
+.dash-card, .steps article { border-color: #e8eaf2; box-shadow: 0 8px 26px rgba(22,29,59,.035); }
+.customer-page .customer-view { display: none; }
+.customer-page .customer-view.view-active { display: block; }
+.customer-page .hero.hidden { display: none !important; }
+.customer-page .dashboard { border: 0; padding-top: 35px; }
+.customer-page .dashboard .section-heading { align-items: center; }
+.customer-stats-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 13px; margin: 22px 0 18px; }
+.stat-card { min-width: 0; padding: 19px; background: #fff; border: 1px solid #e8eaf2; border-radius: 15px; box-shadow: 0 8px 26px rgba(22,29,59,.035); }
+.stat-card span { display: block; color: #7b8298; font-size: 9px; font-weight: 800; letter-spacing: 1.35px; margin-bottom: 12px; }
+.stat-card strong { display: block; color: #151b35; font: 800 clamp(20px,3vw,28px)/1.15 Manrope,sans-serif; overflow-wrap: anywhere; }
+.stat-card small { display: block; margin-top: 8px; color: #8990a3; font-size: 11px; line-height: 1.5; }
+.stat-welcome { background: linear-gradient(135deg,#211c49,#4932a7); border-color: transparent; }
+.stat-welcome span,.stat-welcome small { color: #d0c8ff; }
+.stat-welcome strong { color: #fff; font-size: clamp(18px,2.5vw,25px); }
+.quick-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 20px; }
+.quick-actions .btn { min-height: 43px; }
+.customer-orders-card { margin-top: 18px; }
+.customer-orders-card .section-heading { margin-bottom: 12px; }
+.customer-order-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.support-section { min-height: 45vh; }
+.support-section > p { max-width: 650px; color: var(--muted); line-height: 1.8; font-size: 14px; }
+.support-note { max-width: 650px; padding: 16px; border-radius: 12px; background: #fff; border: 1px solid var(--line); color: #666e84; font-size: 12px; line-height: 1.7; }
+.admin-page .menu-toggle { margin-left: auto; }
+.admin-page .topbar { position: sticky; }
+.btn { box-shadow: 0 5px 12px rgba(101,70,232,.12); }
+.btn-light,.btn-ghost { box-shadow: none; }
+@media (max-width:760px) {
+  .topbar { flex-wrap: nowrap; padding: 11px 14px; }
+  .brand { order: 0; margin-right: auto; }
+  .nav-actions { order: 1; margin-left: 0; }
+  .menu-toggle { order: 2; }
+  .nav-actions .btn { padding: 9px 10px; }
+  .menu-panel { right: 12px; top: 62px; }
+  .customer-stats-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  .stat-card { padding: 15px; }
+  .stat-card span { font-size: 8px; letter-spacing: 1px; }
+  .quick-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .quick-actions .btn:first-child { grid-column: 1 / -1; }
+  .customer-order-row { align-items: flex-start; }
+}
+@media (max-width:380px) {
+  .customer-stats-grid { grid-template-columns: 1fr 1fr; }
+  .stat-card { padding: 12px; }
+  .nav-actions #user-label { display: none; }
+}
