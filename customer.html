@@ -100,10 +100,37 @@
       </div>
     </div>
     <div class="order-preview">
-      <label for="order-service-select">Choose a service</label>
-      <select id="order-service-select" class="order-service-select" aria-label="Choose a service">
-        <option value="">Loading available services...</option>
-      </select>
+      <div class="order-service-finder">
+        <div class="finder-heading">
+          <strong>Find the right service</strong>
+          <span id="order-filter-count">Loading services...</span>
+        </div>
+        <div class="order-filter-grid">
+          <label for="order-platform-filter">1. Platform
+            <select id="order-platform-filter" aria-label="Choose platform">
+              <option value="all">All platforms</option>
+            </select>
+          </label>
+          <label for="order-category-filter">2. Category
+            <select id="order-category-filter" aria-label="Choose service category" disabled>
+              <option value="all">All categories</option>
+            </select>
+          </label>
+          <label for="order-type-filter">3. Service type
+            <select id="order-type-filter" aria-label="Choose service type" disabled>
+              <option value="all">All service types</option>
+            </select>
+          </label>
+        </div>
+        <label for="order-service-search">4. Search by service name or ID
+          <input id="order-service-search" type="search" placeholder="Example: Instagram followers or service ID 123" autocomplete="off">
+        </label>
+        <label for="order-service-select">5. Select your service <span class="required-mark">*</span></label>
+        <select id="order-service-select" class="order-service-select" aria-label="Choose a service">
+          <option value="">Loading available services...</option>
+        </select>
+        <p class="finder-tip">Tip: Select a platform and category first to shorten the list. Search also matches service IDs.</p>
+      </div>
       <input id="selected-service-name" type="hidden" value="">
       <div class="order-preview-grid">
         <div><span>Price / 1,000</span><strong id="selected-service-rate">—</strong></div>

@@ -82,6 +82,13 @@ function detectPlatform(service) {
   if (/youtube|\byt\b/.test(text)) return "youtube";
   if (/facebook|\bfb\b/.test(text)) return "facebook";
   if (/telegram|\btg\b/.test(text)) return "telegram";
+  if (/tiktok/.test(text)) return "tiktok";
+  if (/twitter|\bx\s*(?:followers|likes|views)?\b/.test(text)) return "twitter";
+  if (/spotify/.test(text)) return "spotify";
+  if (/linkedin/.test(text)) return "linkedin";
+  if (/pinterest/.test(text)) return "pinterest";
+  if (/snapchat/.test(text)) return "snapchat";
+  if (/twitch/.test(text)) return "twitch";
 
   return "other";
 }
@@ -347,23 +354,87 @@ async function refreshSession() {
 
 /* SERVICES */
 
-function populateOrderServiceSelect() {
+function inferOrderServiceType(service) {
+  const text = `${service.name || ""} ${service.description || ""}`.toLowerCase();
+  const types = [
+    ["Real / Active", /\breal\b|\bactive\b|\bhuman\b/],
+    ["High Quality", /high.?quality|\bhq\b|premium|quality/],
+    ["Refill", /refill/],
+    ["Non-Drop", /non.?drop|no.?drop/],
+    ["Instant Start", /instant|immediate|fast.?start/],
+    ["Drip-Feed", /drip.?feed|dripfeed/],
+    ["Targeted", /targeted|geo.?target|country.?target/],
+    ["Other / Standard", /.*/]
+  ];
+  return types.find(([, pattern]) => pattern.test(text))[0];
+}
+
+function orderPickerBaseServices() {
+  const platform = $("order-platform-filter")?.value || "all";
+  return services.filter(service => platform === "all" || detectPlatform(service) === platform);
+}
+
+function updateOrderPickerOptions() {
+  const platformSelect = $("order-platform-filter");
+  const categorySelect = $("order-category-filter");
+  const typeSelect = $("order-type-filter");
+  const serviceSelect = $("order-service-select");
+  if (!platformSelect || !categorySelect || !typeSelect || !serviceSelect) return;
+
+  const previous = selectedService ? String(selectedService.id) : serviceSelect.value;
+  const oldPlatform = platformSelect.value || "all";
+  const platforms = [...new Set(services.map(detectPlatform))].sort();
+  const platformLabels = { instagram: "Instagram", youtube: "YouTube", facebook: "Facebook", telegram: "Telegram", tiktok: "TikTok", twitter: "X / Twitter", spotify: "Spotify", linkedin: "LinkedIn", pinterest: "Pinterest", snapchat: "Snapchat", twitch: "Twitch", other: "Other / Unclassified" };
+  platformSelect.innerHTML = '<option value="all">All platforms</option>' + platforms.map(value => `<option value="${escapeHTML(value)}">${escapeHTML(platformLabels[value] || value.replace(/^./, c => c.toUpperCase()))}</option>`).join("");
+  if (platforms.includes(oldPlatform)) platformSelect.value = oldPlatform;
+
+  const base = orderPickerBaseServices();
+  const oldCategory = categorySelect.value || "all";
+  const categories = [...new Set(base.map(detectCategory))].sort();
+  categorySelect.innerHTML = '<option value="all">All categories</option>' + categories.map(value => `<option value="${escapeHTML(value)}">${escapeHTML(value)}</option>`).join("");
+  categorySelect.disabled = !base.length;
+  if (categories.includes(oldCategory)) categorySelect.value = oldCategory;
+
+  const category = categorySelect.value;
+  const inCategory = base.filter(service => category === "all" || detectCategory(service) === category);
+  const oldType = typeSelect.value || "all";
+  const types = [...new Set(inCategory.map(inferOrderServiceType))].sort();
+  typeSelect.innerHTML = '<option value="all">All service types</option>' + types.map(value => `<option value="${escapeHTML(value)}">${escapeHTML(value)}</option>`).join("");
+  typeSelect.disabled = !inCategory.length;
+  if (types.includes(oldType)) typeSelect.value = oldType;
+
+  renderOrderServiceOptions(previous);
+}
+
+function renderOrderServiceOptions(previous = "") {
   const select = $("order-service-select");
   if (!select) return;
-  const previous = selectedService ? String(selectedService.id) : select.value;
-  const options = services.map(service => {
+  const platform = $("order-platform-filter")?.value || "all";
+  const category = $("order-category-filter")?.value || "all";
+  const type = $("order-type-filter")?.value || "all";
+  const search = ($("order-service-search")?.value || "").trim().toLowerCase();
+  const filtered = services.filter(service => {
+    const searchable = `${service.id} ${service.name || ""} ${service.category || ""} ${service.description || ""}`.toLowerCase();
+    return (platform === "all" || detectPlatform(service) === platform)
+      && (category === "all" || detectCategory(service) === category)
+      && (type === "all" || inferOrderServiceType(service) === type)
+      && searchable.includes(search);
+  });
+  const count = $("order-filter-count");
+  if (count) count.textContent = `${filtered.length} matching services`;
+  const options = filtered.map(service => {
     const rate = Number(service.customer_rate);
-    const price = Number.isFinite(rate) && rate > 0
-      ? ` — ${formatRupees(rate)} / 1,000`
-      : (currentUser ? " — Price unavailable" : " — Login to view price");
-    return `<option value="${escapeHTML(service.id)}">${escapeHTML(service.name)}${escapeHTML(price)}</option>`;
+    const price = Number.isFinite(rate) && rate > 0 ? ` · ${formatRupees(rate)} / 1,000` : (currentUser ? " · Price unavailable" : " · Login to view price");
+    return `<option value="${escapeHTML(service.id)}">${escapeHTML(service.name)}${escapeHTML(price)} · ID ${escapeHTML(service.id)}</option>`;
   }).join("");
-  select.innerHTML = `<option value="">Select a service (${services.length} available)</option>${options}`;
-  if (previous && services.some(service => String(service.id) === previous)) {
-    select.value = previous;
-  } else {
-    select.value = "";
-  }
+  select.innerHTML = `<option value="">${filtered.length ? `Select from ${filtered.length} matching services` : "No matching services — change filters"}</option>${options}`;
+  if (previous && filtered.some(service => String(service.id) === String(previous))) select.value = previous;
+  else if (selectedService && filtered.some(service => String(service.id) === String(selectedService.id))) select.value = String(selectedService.id);
+  else select.value = "";
+}
+
+function populateOrderServiceSelect() {
+  updateOrderPickerOptions();
 }
 
 async function loadServices() {
@@ -1673,6 +1744,17 @@ function setupEvents() {
   on("platform-filter", "change", () => { if ($("category-filter")) $("category-filter").value = "all"; updateCategoryOptions(); renderServices(); });
   on("category-filter", "change", renderServices);
   on("order-form", "submit", submitOrder);
+  on("order-platform-filter", "change", () => {
+    if ($("order-category-filter")) $("order-category-filter").value = "all";
+    if ($("order-type-filter")) $("order-type-filter").value = "all";
+    updateOrderPickerOptions();
+  });
+  on("order-category-filter", "change", () => {
+    if ($("order-type-filter")) $("order-type-filter").value = "all";
+    renderOrderServiceOptions();
+  });
+  on("order-type-filter", "change", renderOrderServiceOptions);
+  on("order-service-search", "input", renderOrderServiceOptions);
   on("order-service-select", "change", event => {
     if (!event.target.value) {
       selectedService = null;

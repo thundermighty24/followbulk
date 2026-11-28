@@ -556,3 +556,27 @@ body { background: #f6f7fb; }
   border-color: var(--purple);
   box-shadow: 0 0 0 3px #7050ed18;
 }
+
+/* Cascading New Order service finder */
+.order-service-finder {
+  padding: 16px;
+  margin: 0 0 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fbfaff, #f5f2ff);
+}
+.finder-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.finder-heading strong { font-size:15px; }
+.finder-heading span, .finder-tip { color:var(--muted); font-size:12px; }
+.order-filter-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:12px; }
+.order-service-finder label { display:block; min-width:0; margin-bottom:12px; font-size:12px; font-weight:700; }
+.order-service-finder input, .order-service-finder select {
+  display:block; width:100%; min-width:0; margin-top:7px; padding:12px;
+  border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--ink);
+  font:14px 'DM Sans',sans-serif;
+}
+.order-service-finder input:focus, .order-service-finder select:focus { outline:none; border-color:var(--purple); box-shadow:0 0 0 3px #7050ed18; }
+.order-service-finder select:disabled { opacity:.55; background:#f0eef5; }
+.order-service-finder .required-mark { color:#d04444; }
+.order-service-finder .finder-tip { margin:0; line-height:1.5; }
+@media(max-width:650px) { .order-filter-grid { grid-template-columns:1fr; gap:0; } .order-service-finder { padding:13px; } }
