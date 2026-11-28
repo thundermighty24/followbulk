@@ -224,6 +224,9 @@ async function refreshSession() {
   $("logout").classList.toggle("hidden", !currentUser);
   $("admin-nav").classList.toggle("hidden", !isAdmin);
   $("admin-dashboard").classList.toggle("hidden", !isAdmin);
+  document.body.classList.toggle("admin-authorized", isAdmin);
+  const adminGate = $("admin-gate");
+  if (adminGate) adminGate.classList.toggle("hidden", isAdmin);
   updateOrderFormAvailability();
 
   $("user-label").textContent = currentUser

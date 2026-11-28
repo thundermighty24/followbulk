@@ -1,0 +1,396 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17152f">
+  <title>Followbulk — Customer Panel</title>
+  <meta name="description" content="Manage your social media services with Followbulk.">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="customer-portal">
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="brand-mark">F</span>Follow<span>bulk</span></a>
+  <nav>
+    <a href="customer.html">Customer Panel</a>
+    <a href="admin.html">Admin Panel</a>
+    <a href="#services">Services</a>
+    <a href="#dashboard">My Dashboard</a>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#admin-dashboard" id="admin-nav" class="hidden">Admin</a>
+    <a href="#how">How it works</a>
+  </nav>
+  <div class="nav-actions">
+    <span id="user-label"></span>
+    <button class="btn btn-ghost" id="login-open">Login</button>
+    <button class="btn" id="signup-open">Create account</button>
+    <button class="btn btn-ghost hidden" id="logout">Log out</button>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow">WELCOME TO FOLLOWBULK</div>
+      <h1>Your social growth.<br><span>One simple place.</span></h1>
+      <p>Explore social media services, manage your account and keep track of your requests with Followbulk.</p>
+      <div class="hero-actions">
+        <a class="btn" href="#services">Explore services</a>
+        <button class="btn btn-light" id="hero-signup">Get started</button>
+      </div>
+      <div class="trust">
+        <span>✓ Simple dashboard</span>
+        <span>✓ Clear pricing</span>
+        <span>✓ UPI top-up requests</span>
+      </div>
+    </div>
+    <div class="hero-panel">
+      <div class="panel-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><small>FOLLOWBULK WORKSPACE</small></div>
+      <div class="growth-card">
+        <small>YOUR SOCIAL WORKSPACE</small>
+        <h2>Everything in one place.</h2>
+        <p>Explore · Manage · Track</p>
+        <div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="panel-foot"><span>Your account</span><b>Ready to explore</b></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="services">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow">SERVICE CATALOGUE</div>
+        <h2>Find your service</h2>
+        <p>Choose a platform, filter by category or search by service name.</p>
+      </div>
+      <button class="btn btn-light" id="refresh-services">Refresh catalogue</button>
+    </div>
+    <div class="catalogue-tools">
+      <input id="service-search" type="search" placeholder="Search services..." aria-label="Search services">
+      <select id="platform-filter" aria-label="Filter by platform">
+        <option value="all">All platforms</option>
+        <option value="instagram">Instagram</option>
+        <option value="youtube">YouTube</option>
+        <option value="facebook">Facebook</option>
+        <option value="telegram">Telegram</option>
+        <option value="other">Other / Unclassified</option>
+      </select>
+      <select id="category-filter" aria-label="Filter by category">
+        <option value="all">All categories</option>
+      </select>
+    </div>
+    <div class="catalogue-summary">
+      <span id="service-count">Loading services...</span>
+      <span>Prices are per 1,000</span>
+    </div>
+    <div id="services-list" class="service-list">
+      <div class="empty">Loading services...</div>
+    </div>
+    <p class="catalogue-note">Choose a service to view its pricing and limits. Order placement will be enabled after secure checkout is connected.</p>
+  </section>
+
+  <section class="section order-section" id="order-now">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow">QUICK ORDER</div>
+        <h2>Order details</h2>
+        <p>Select a service, add its target link and quantity, then submit securely.</p>
+      </div>
+    </div>
+    <div class="order-preview">
+      <label for="selected-service-name">Selected service</label>
+      <input id="selected-service-name" type="text" readonly placeholder="Choose a service above">
+      <div class="order-preview-grid">
+        <div><span>Price / 1,000</span><strong id="selected-service-rate">—</strong></div>
+        <div><span>Minimum quantity</span><strong id="selected-service-min">—</strong></div>
+        <div><span>Maximum quantity</span><strong id="selected-service-max">—</strong></div>
+      </div>
+
+      <form id="order-form" class="order-form">
+        <label for="order-target-url">Target URL
+          <input id="order-target-url" type="url" maxlength="2000" required disabled placeholder="https://www.instagram.com/...">
+        </label>
+        <label for="order-quantity">Quantity
+          <input id="order-quantity" type="number" min="1" step="1" required disabled placeholder="Select a service first">
+        </label>
+        <div class="order-total-row">
+          <span>Estimated order total</span>
+          <strong id="order-estimated-total">—</strong>
+        </div>
+        <p class="order-hint">The final charge is calculated securely by Followbulk using the current service price and your wallet balance.</p>
+        <button class="btn" id="place-order-button" type="submit" disabled>Place order</button>
+      </form>
+      <p id="order-message" class="message" role="status" aria-live="polite">Choose a service and log in to place an order.</p>
+    </div>
+  </section>
+
+  <section class="section dashboard" id="dashboard">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow">CUSTOMER AREA</div>
+        <h2>Your dashboard</h2>
+        <p>Manage your Followbulk account in one place.</p>
+      </div>
+      <span id="auth-status" class="status">Sign in to view your account</span>
+    </div>
+    <div class="dash-grid">
+      <article class="dash-card">
+        <div class="eyebrow">ACCOUNT</div>
+        <h3>Welcome to Followbulk</h3>
+        <p>Sign in to manage your account and view your recent payment requests.</p>
+        <div class="account-note" id="account-info">Your account activity will appear here after login.</div>
+      </article>
+      <article class="dash-card">
+        <div class="eyebrow">WALLET</div>
+        <h3>UPI wallet top-up</h3>
+        <p>Submit your payment reference for manual verification. Funds are not added automatically.</p>
+        <form id="topup-form">
+          <label>Amount (₹)<input type="number" min="1" step="1" id="topup-amount" required placeholder="Enter amount"></label>
+          <label>UPI UTR / Reference<input id="topup-utr" required maxlength="100" placeholder="Enter payment reference"></label>
+          <button class="btn" type="submit">Submit top-up request</button>
+        </form>
+        <p id="topup-message" class="message"></p>
+      </article>
+      <article class="dash-card">
+        <div class="eyebrow">ACTIVITY</div>
+        <h3>Recent top-up requests</h3>
+        <div id="wallet-requests" class="empty">Sign in to view requests.</div>
+      </article>
+      <article class="dash-card">
+        <div class="eyebrow">WALLET BALANCE</div>
+        <h3 id="customer-balance">₹—</h3>
+        <p>Available balance recorded in your wallet ledger.</p>
+        <div id="customer-balance-message" class="account-note">Sign in to view your balance.</div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ADMIN DASHBOARD -->
+  <section class="section hidden" id="admin-dashboard">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow">FOLLOWBULK CONTROL CENTRE</div>
+        <h2>Admin Dashboard</h2>
+        <p>Manage customers, wallet requests and orders.</p>
+      </div>
+      <span class="status">Administrator</span>
+    </div>
+
+    <div class="dash-grid admin-stats">
+      <article class="dash-card">
+        <div class="eyebrow">CUSTOMERS</div>
+        <h3 id="admin-customer-count">—</h3>
+        <p>Registered accounts</p>
+      </article>
+      <article class="dash-card">
+        <div class="eyebrow">ORDERS</div>
+        <h3 id="admin-order-count">—</h3>
+        <p>Total recorded orders</p>
+      </article>
+      <article class="dash-card">
+        <div class="eyebrow">PENDING TOP-UPS</div>
+        <h3 id="admin-pending-count">—</h3>
+        <p>Requests awaiting review</p>
+      </article>
+      <article class="dash-card">
+        <div class="eyebrow">SERVICES</div>
+        <h3 id="admin-service-count">—</h3>
+        <p>Active catalogue services</p>
+      </article>
+    </div>
+
+    <!-- PRICING MANAGEMENT -->
+    <article class="dash-card admin-panel" id="admin-pricing-panel">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">REVENUE MANAGEMENT</div>
+          <h3>Pricing Management</h3>
+          <p>Manage default, category and individual service markups.</p>
+        </div>
+        <span class="status">INR Pricing</span>
+      </div>
+
+      <!-- DEFAULT MARKUP -->
+      <div class="pricing-settings">
+        <h4>Default markup</h4>
+        <p>Applied when a service has no category or individual override.</p>
+
+        <div class="pricing-input-row">
+          <label for="default-markup">Default markup (%)</label>
+          <input
+            id="default-markup"
+            type="number"
+            min="0"
+            max="10000"
+            step="0.01"
+            value="30"
+          >
+          <button class="btn btn-primary btn-small" type="button" id="save-default-markup">
+            Save default
+          </button>
+        </div>
+      </div>
+
+      <div class="pricing-divider"></div>
+
+      <!-- CATEGORY MARKUP -->
+      <div class="pricing-settings">
+        <h4>Category markup</h4>
+        <p>Set a markup for all services in a selected category.</p>
+
+        <label for="pricing-category">Select category</label>
+        <select id="pricing-category">
+          <option value="">Loading categories...</option>
+        </select>
+
+        <div class="pricing-input-row">
+          <label for="category-markup">Category markup (%)</label>
+          <input
+            id="category-markup"
+            type="number"
+            min="0"
+            max="10000"
+            step="0.01"
+            placeholder="Enter percentage"
+          >
+          <button class="btn btn-primary btn-small" type="button" id="save-category-markup">
+            Save category
+          </button>
+        </div>
+
+        <button class="btn btn-light btn-small" type="button" id="reset-category-markup">
+          Remove category override
+        </button>
+
+        <div id="category-pricing-message" class="message"></div>
+      </div>
+
+      <div class="pricing-divider"></div>
+
+      <!-- INDIVIDUAL SERVICE MARKUP -->
+      <div class="pricing-settings">
+        <h4>Individual service pricing</h4>
+        <p>Search any service and set its own markup.</p>
+<label for="pricing-service-category">Filter by category</label>
+<select id="pricing-service-category">
+  <option value="all">All categories</option>
+</select>
+        <label for="pricing-service-search">Search services</label>
+        <input
+          id="pricing-service-search"
+          type="search"
+          placeholder="Search service name or provider ID..."
+        >
+
+        <div id="pricing-service-list" class="empty">
+          Loading services...
+        </div>
+
+        <div id="individual-pricing-editor" class="hidden">
+          <h4 id="pricing-selected-service">Selected service</h4>
+
+          <p id="pricing-provider-rate"></p>
+          <p id="pricing-current-markup"></p>
+          <p id="pricing-customer-rate"></p>
+
+          <label for="individual-markup">Individual markup (%)</label>
+          <input
+            id="individual-markup"
+            type="number"
+            min="0"
+            max="10000"
+            step="0.01"
+            placeholder="Enter percentage"
+          >
+
+          <button class="btn btn-primary btn-small" type="button" id="save-individual-markup">
+            Save service markup
+          </button>
+
+          <button class="btn btn-light btn-small" type="button" id="reset-individual-markup">
+            Reset to category/default
+          </button>
+        </div>
+
+        <div id="individual-pricing-message" class="message"></div>
+      </div>
+
+      <div class="pricing-divider"></div>
+
+      <div class="section-heading">
+        <div>
+          <h4>Pricing overview</h4>
+          <p>Review your current selling prices and markups.</p>
+        </div>
+        <button class="btn btn-light btn-small" type="button" id="admin-refresh-pricing">
+          Refresh
+        </button>
+      </div>
+
+      <div id="admin-pricing-message" class="message"></div>
+    </article>
+    <!-- END PRICING MANAGEMENT -->
+
+    <article class="dash-card admin-panel">
+      <div class="section-heading">
+        <div><div class="eyebrow">PAYMENT REVIEW</div><h3>Wallet requests</h3></div>
+        <button class="btn btn-light btn-small" id="admin-refresh-wallet">Refresh</button>
+      </div>
+      <div id="admin-wallet-list" class="empty">Loading wallet requests...</div>
+    </article>
+
+    <article class="dash-card admin-panel">
+      <div class="section-heading">
+        <div><div class="eyebrow">CUSTOMER DIRECTORY</div><h3>Customers</h3></div>
+        <button class="btn btn-light btn-small" id="admin-refresh-customers">Refresh</button>
+      </div>
+      <div id="admin-customer-list" class="empty">Loading customers...</div>
+    </article>
+
+    <article class="dash-card admin-panel">
+      <div class="section-heading">
+        <div><div class="eyebrow">ORDER MONITORING</div><h3>Recent orders</h3></div>
+        <button class="btn btn-light btn-small" id="admin-refresh-orders">Refresh</button>
+      </div>
+      <div id="admin-order-list" class="empty">Loading orders...</div>
+    </article>
+
+    <p id="admin-message" class="message"></p>
+  </section>
+
+  <section class="section how" id="how">
+    <div class="eyebrow">HOW IT WORKS</div>
+    <h2>Simple steps. Clear updates.</h2>
+    <div class="steps">
+      <article><b>01</b><h3>Create an account</h3><p>Register to access your Followbulk dashboard.</p></article>
+      <article><b>02</b><h3>Explore services</h3><p>Search, filter and review available services and their pricing.</p></article>
+      <article><b>03</b><h3>Track requests</h3><p>Check your account activity and request updates.</p></article>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <a class="brand" href="#"><span class="brand-mark">F</span>Follow<span>bulk</span></a>
+  <small>© 2026 Followbulk. Use services responsibly and follow each platform's terms.</small>
+</footer>
+
+<dialog id="auth-dialog">
+  <form method="dialog" class="dialog-close"><button aria-label="Close">×</button></form>
+  <div class="eyebrow">WELCOME TO FOLLOWBULK</div>
+  <h2 id="auth-title">Login</h2>
+  <form id="auth-form">
+    <label id="name-wrap" class="hidden">Full name<input id="full-name" autocomplete="name"></label>
+    <label>Email<input id="email" type="email" autocomplete="email" required></label>
+    <label>Password<input id="password" type="password" minlength="6" autocomplete="current-password" required></label>
+    <button class="btn full" id="auth-submit" type="submit">Login</button>
+    <p id="auth-message" class="message"></p>
+  </form>
+  <button class="text-button" id="auth-switch">New here? Create an account</button>
+</dialog>
+
+<div id="toast" role="status" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
